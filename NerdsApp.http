@@ -1,0 +1,6 @@
+@NerdsApp_HostAddress = http://localhost:5067
+
+GET {{NerdsApp_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
