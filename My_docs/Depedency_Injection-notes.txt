@@ -1,0 +1,36 @@
+﻿DEPENDENCY INJECTION - NOTES
+
+1. What is DI?
+Pass dependencies from outside instead of creating inside class.
+
+csharp//WITHOUT DI
+public class BoardService
+{
+    private readonly ApplicationDbContext _db = new ApplicationDbContext();
+}
+
+csharp//WITH DI
+public class BoardService
+{
+    private readonly ApplicationDbContext _db;
+    public BoardService(ApplicationDbContext db) => _db = db;
+}
+
+2. Three lifetimes.
+Lifetime        When creates new?       Use for
+------------------------------------------------------------------------------------------
+Transient       Every time you ask      Rarely used
+Scoped          Once per HTTP request   DbContext, services
+Singleton       Once for entire app     Cache, config
+
+3. Rules.
+
+DbContext = always Scoped
+Services using DbContext = Scoped
+Do not inject Scoped into Singleton -> app crash/memory leak
+Scoped = default choice (90% cases)
+
+
+My code.
+builder.Services.AddDbContext<ApplicationDbContext>(...); // Scoped
+builder.Services.AddScoped<IBoardService, BoardService>(); // Scoped
