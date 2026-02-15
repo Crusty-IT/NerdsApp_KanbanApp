@@ -1,0 +1,39 @@
+﻿When to Use AI in Programming.
+What I kearned:
+
+AI is good at: 
+- aoilerplate code, syntax, tests, explaining code;
+
+Human is needed for: 
+- architecture, security, business logic, performance;
+
+Always verify AI output - AI can suggest insecure code!
+
+Use AI to learn, not to avoid learning!
+
+
+My tasks analysis below.
+a) BoardService:
+
+AI did well: interface structure, EF syntax, naming conventions;
+I had to fix: DI registration, verify business logic;
+Conclusion: AI = fast skeleton, human = context & validation;
+
+Debugging:
+
+AI did well: found DI bug quickly, explained the fix;
+I had to fix: I have to understand a fix;
+Conclusion: DI needs AddScoped<Interface, implementation;
+
+USE AI for:
+
+- syntax I forgot;
+- test generation;
+- explaining legacy code;
+
+Do not use AI for:
+
+- architecture app decisions;
+- business logic;
+- security code;
+- performance optimization;
