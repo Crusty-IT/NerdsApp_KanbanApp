@@ -490,3 +490,9 @@ $RECYCLE.BIN/
 
 # local database
 kanban.db
+
+# Addicional security for new structure
+KanbanApp/bin/
+KanbanApp/obj/
+KanbanApp.Tests/bin/
+KanbanApp.Tests/obj/

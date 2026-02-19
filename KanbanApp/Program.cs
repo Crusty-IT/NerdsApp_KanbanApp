@@ -23,6 +23,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.MapIdentityApi<ApplicationUser>();
 
 app.MapGet("/api/boards", async (IBoardService service) =>
 {
@@ -30,6 +31,9 @@ app.MapGet("/api/boards", async (IBoardService service) =>
     return Results.Ok(boards);
 });
 
+
+
 app.Run();
 
+public partial class Program { }
 
