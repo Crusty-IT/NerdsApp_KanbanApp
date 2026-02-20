@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using KanbanApp.Data;
 using KanbanApp.Models;
 using KanbanApp.Services;
+using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,7 @@ builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IBoardService, BoardService>();
+builder.Services.AddAuthorization();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -23,6 +25,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthorization();
 app.MapIdentityApi<ApplicationUser>();
 
 app.MapGet("/api/boards", async (IBoardService service) =>
@@ -31,7 +34,15 @@ app.MapGet("/api/boards", async (IBoardService service) =>
     return Results.Ok(boards);
 });
 
+app.MapGet("/api/users/me", async (ClaimsPrincipal user, ApplicationDbContext db) =>
+{
+    var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+    
+    var appUser = await db.Users.FindAsync(userId);
+    
+    return TypedResults.Ok(new { appUser!.Id, appUser.UserName, appUser.Email });
 
+}).RequireAuthorization();
 
 app.Run();
 
