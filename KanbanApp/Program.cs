@@ -15,6 +15,7 @@ builder.Services.AddIdentityApiEndpoints<ApplicationUser>()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IBoardService, BoardService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddAuthorization();
 var app = builder.Build();
 
@@ -34,14 +35,12 @@ app.MapGet("/api/boards", async (IBoardService service) =>
     return Results.Ok(boards);
 });
 
-app.MapGet("/api/users/me", async (ClaimsPrincipal user, ApplicationDbContext db) =>
+app.MapGet("/api/users/me", async (ClaimsPrincipal user, IUserService userService) =>
 {
     var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-    
-    var appUser = await db.Users.FindAsync(userId);
-    
-    return TypedResults.Ok(new { appUser!.Id, appUser.UserName, appUser.Email });
-
+    var profile = await userService.GetUserProfileAsync(userId!);
+    if (profile == null) return Results.NotFound();
+    return Results.Ok(profile);
 }).RequireAuthorization();
 
 app.Run();
