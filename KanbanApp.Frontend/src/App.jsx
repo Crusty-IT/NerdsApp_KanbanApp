@@ -28,6 +28,7 @@ export default function App() {
         <div className="app-layout">
             <aside className="sidebar">
                 <div className="sidebar-logo">
+                    <img src="/logo.png" alt="KanbanApp logo" style={{ height: '36px', width: 'auto' }} />
                     <span>KANBAN<span className="logo-dot">.app</span></span>
                 </div>
                 <nav className="sidebar-nav">

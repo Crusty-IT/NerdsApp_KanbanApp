@@ -43,7 +43,7 @@ public static class BoardEndpoints
                 board.Columns.Select(c => new ColumnDto(
                     c.Id, c.Name, c.Position, c.Color,
                     c.Cards.Select(card => new CardDto(
-                        card.Id, card.Title, card.Description, card.Position, card.CreatedAt, card.AssignedToUserId
+                        card.Id, card.Title, card.Description, card.Position, card.CreatedAt, card.AssignedToUserId, card.DueDate, card.Color
                     )).ToList()
                 )).ToList()
             );

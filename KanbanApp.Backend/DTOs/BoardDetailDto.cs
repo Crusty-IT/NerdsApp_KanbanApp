@@ -22,5 +22,7 @@ public record CardDto(
     string? Description,
     int Position,
     DateTime CreatedAt,
-    string? AssignedToUserId
+    string? AssignedToUserId,
+    DateTime? DueDate,
+    string? Color
 );
