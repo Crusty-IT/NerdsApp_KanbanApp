@@ -18,11 +18,11 @@ public static class CardEndpoints
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardMember");
             if (!authResult.Succeeded) return Results.Forbid();
 
-            var card = await cardService.CreateAsync(boardId, dto.ColumnId, dto.Title, dto.Description);
+            var card = await cardService.CreateAsync(boardId, dto.ColumnId, dto.Title, dto.Description, dto.DueDate, dto.Color);
             return card is null
                 ? Results.BadRequest("Column not found.")
                 : TypedResults.Created($"/api/boards/{boardId}/cards/{card.Id}",
-                    new { card.Id, card.Title, card.Description, card.ColumnId });
+                    new { card.Id, card.Title, card.Description, card.ColumnId, card.DueDate, card.Color });
         });
 
         cards.MapPut("/{cardId}", async (int boardId, int cardId, UpdateCardDto dto, ICardService cardService,
@@ -31,10 +31,10 @@ public static class CardEndpoints
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardMember");
             if (!authResult.Succeeded) return Results.Forbid();
 
-            var card = await cardService.UpdateAsync(boardId, cardId, dto.Title, dto.Description, dto.ColumnId, dto.AssignedToUserId);
+            var card = await cardService.UpdateAsync(boardId, cardId, dto.Title, dto.Description, dto.ColumnId, dto.AssignedToUserId, dto.DueDate, dto.Color);
             return card is null
                 ? Results.NotFound()
-                : Results.Ok(new { card.Id, card.Title, card.Description, card.ColumnId, card.AssignedToUserId });
+                : Results.Ok(new { card.Id, card.Title, card.Description, card.ColumnId, card.AssignedToUserId, card.DueDate, card.Color });
         });
 
         cards.MapDelete("/{cardId}", async (int boardId, int cardId, ICardService cardService,

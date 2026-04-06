@@ -1,2 +1,3 @@
 namespace KanbanApp.Backend.DTOs;
-public record CreateCardDto(string Title, string? Description, int ColumnId);
+
+public record CreateCardDto(string Title, int ColumnId, string? Description = null, DateTime? DueDate = null, string? Color = null);

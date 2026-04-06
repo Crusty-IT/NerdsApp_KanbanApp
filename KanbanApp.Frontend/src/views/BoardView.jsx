@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { DragDropContext } from '@hello-pangea/dnd';
+import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import api from '../services/api';
 import Column from '../components/Column';
 import InviteModal from '../components/InviteModal';
@@ -27,6 +27,7 @@ export default function BoardView() {
     const [editingColumn, setEditingColumn] = useState(null);
     const [showConfirmDelete, setShowConfirmDelete] = useState(false);
     const [pendingDeleteColumnId, setPendingDeleteColumnId] = useState(null);
+    const [filterUserId, setFilterUserId] = useState('');
     const { setTitle, setActions } = useTopbar();
 
     useEffect(() => {
@@ -38,10 +39,34 @@ export default function BoardView() {
             setTitle(board.name);
             setActions({
                 left: <button className="btn-secondary" onClick={() => navigate(-1)} style={{ fontSize: '14px' }}>← Back</button>,
-                right: <button className="btn-secondary" onClick={() => setShowInvite(true)}>👥 Invite</button>
+                right: (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <select
+                            value={filterUserId}
+                            onChange={e => setFilterUserId(e.target.value)}
+                            style={{
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 'var(--radius)',
+                                color: 'var(--text-primary)',
+                                padding: '6px 10px',
+                                fontSize: '13px',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            <option value=''>All members</option>
+                            {boardMembers.map(m => (
+                                <option key={m.userId} value={m.userId}>
+                                    {m.userName || m.email}
+                                </option>
+                            ))}
+                        </select>
+                        <button className="btn-secondary" onClick={() => setShowInvite(true)}>👥 Invite</button>
+                    </div>
+                )
             });
         }
-    }, [board]);
+    }, [board, boardMembers, filterUserId]);
 
     useEffect(() => {
         let ignore = false;
@@ -203,9 +228,36 @@ export default function BoardView() {
     };
 
     const handleDragEnd = async (result) => {
-        const { source, destination, draggableId } = result;
+        const { source, destination, draggableId, type } = result;
         if (!destination) return;
         if (source.droppableId === destination.droppableId && source.index === destination.index) return;
+
+        if (type === 'COLUMN') {
+            const previousBoard = JSON.parse(JSON.stringify(board));
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                const sorted = [...updated.columns].sort((a, b) => a.position - b.position);
+                const [moved] = sorted.splice(source.index, 1);
+                sorted.splice(destination.index, 0, moved);
+                sorted.forEach((col, i) => { col.position = i; });
+                updated.columns = sorted;
+                return updated;
+            });
+
+            try {
+                const colId = parseInt(draggableId.replace('col-', ''));
+                await api.put(`/api/boards/${boardId}/columns/${colId}`, {
+                    name: previousBoard.columns.find(c => c.id === colId).name,
+                    color: previousBoard.columns.find(c => c.id === colId).color,
+                    position: destination.index
+                });
+            } catch {
+                setBoard(previousBoard);
+                setError('Failed to reorder columns');
+                setTimeout(() => setError(null), 3000);
+            }
+            return;
+        }
 
         const cardId = parseInt(draggableId);
         const sourceColumnId = parseInt(source.droppableId);
@@ -225,7 +277,8 @@ export default function BoardView() {
 
         try {
             await api.put(`/api/boards/${boardId}/cards/${cardId}`, {
-                title: card.title, description: card.description, columnId: destColumnId
+                title: card.title, description: card.description, columnId: destColumnId,
+                dueDate: card.dueDate || null, color: card.color || null
             });
         } catch {
             setBoard(previousBoard);
@@ -238,6 +291,14 @@ export default function BoardView() {
     if (!board) return <div className="page-content"><p>Board not found.</p></div>;
 
     const pendingDeleteColumn = board.columns.find(c => c.id === pendingDeleteColumnId);
+    const sortedColumns = [...board.columns].sort((a, b) => a.position - b.position);
+
+    const filteredColumns = sortedColumns.map(col => ({
+        ...col,
+        cards: filterUserId
+            ? col.cards.filter(card => card.assignedToUserId === filterUserId)
+            : col.cards
+    }));
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -245,18 +306,30 @@ export default function BoardView() {
 
             <div style={{ flex: 1, overflowX: 'auto', padding: '24px', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
                 <DragDropContext onDragEnd={handleDragEnd}>
-                    {board.columns.slice().sort((a, b) => a.position - b.position).map(column => (
-                        <Column
-                            key={column.id}
-                            column={column}
-                            onCreateCard={handleCreateCard}
-                            onEdit={handleEditColumn}
-                            onDelete={handleDeleteColumn}
-                            onUpdateCard={handleUpdateCard}
-                            onDeleteCard={handleDeleteCard}
-                            boardMembers={boardMembers}
-                        />
-                    ))}
+                    <Droppable droppableId="board" type="COLUMN" direction="horizontal">
+                        {(provided) => (
+                            <div
+                                ref={provided.innerRef}
+                                {...provided.droppableProps}
+                                style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}
+                            >
+                                {filteredColumns.map((column, index) => (
+                                    <Column
+                                        key={column.id}
+                                        column={column}
+                                        index={index}
+                                        onCreateCard={handleCreateCard}
+                                        onEdit={handleEditColumn}
+                                        onDelete={handleDeleteColumn}
+                                        onUpdateCard={handleUpdateCard}
+                                        onDeleteCard={handleDeleteCard}
+                                        boardMembers={boardMembers}
+                                    />
+                                ))}
+                                {provided.placeholder}
+                            </div>
+                        )}
+                    </Droppable>
                 </DragDropContext>
 
                 {showColumnForm ? (
@@ -273,7 +346,8 @@ export default function BoardView() {
                                         <button key={c} type="button" onClick={() => setColumnColor(c)} style={{
                                             width: '22px', height: '22px', borderRadius: '50%', background: c,
                                             border: columnColor === c ? '3px solid #fff' : '2px solid transparent',
-                                            outline: columnColor === c ? `2px solid ${c}` : 'none', padding: 0, cursor: 'pointer'
+                                            outline: columnColor === c ? `2px solid ${c}` : 'none',
+                                            padding: 0, cursor: 'pointer'
                                         }} />
                                     ))}
                                 </div>

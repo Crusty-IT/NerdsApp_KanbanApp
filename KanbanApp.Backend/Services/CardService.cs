@@ -1,4 +1,5 @@
 namespace KanbanApp.Backend.Services;
+
 using Data;
 using Models;
 using Microsoft.EntityFrameworkCore;
@@ -8,19 +9,26 @@ public class CardService : ICardService
     private readonly ApplicationDbContext _context;
     public CardService(ApplicationDbContext context) { _context = context; }
 
-    public async Task<Card?> CreateAsync(int boardId, int columnId, string title, string? description)
+    public async Task<Card?> CreateAsync(int boardId, int columnId, string title, string? description, DateTime? dueDate, string? color)
     {
         var column = await _context.Columns
             .FirstOrDefaultAsync(c => c.Id == columnId && c.BoardId == boardId);
         if (column == null) return null;
 
-        var card = new Card { Title = title, Description = description, ColumnId = columnId };
+        var card = new Card
+        {
+            Title = title,
+            Description = description,
+            ColumnId = columnId,
+            DueDate = dueDate,
+            Color = color
+        };
         _context.Cards.Add(card);
         await _context.SaveChangesAsync();
         return card;
     }
 
-    public async Task<Card?> UpdateAsync(int boardId, int cardId, string title, string? description, int columnId, string? assignedToUserId)
+    public async Task<Card?> UpdateAsync(int boardId, int cardId, string title, string? description, int columnId, string? assignedToUserId, DateTime? dueDate, string? color)
     {
         var card = await _context.Cards
             .Include(c => c.Column)
@@ -35,6 +43,8 @@ public class CardService : ICardService
         card.Description = description;
         card.ColumnId = columnId;
         card.AssignedToUserId = assignedToUserId;
+        card.DueDate = dueDate;
+        card.Color = color;
         await _context.SaveChangesAsync();
         return card;
     }
