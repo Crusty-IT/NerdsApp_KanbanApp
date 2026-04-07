@@ -27,7 +27,13 @@ public static class DatabaseExtensions
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        if (db.Database.IsRelational())
+        var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+
+        if (env.IsDevelopment())
+        {
+            db.Database.EnsureCreated();
+        }
+        else
         {
             db.Database.Migrate();
         }
