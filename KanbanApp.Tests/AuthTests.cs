@@ -1,32 +1,12 @@
-using System.Net;
-using System.Net.Http.Json;
-using KanbanApp.Backend.Data;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
-using System.Text.Json;
-
 namespace KanbanApp.Tests;
 
-public class AuthTests : IClassFixture<WebApplicationFactory<Program>>
+public class AuthTests : IClassFixture<KanbanWebAppFactory>
 {
     private readonly HttpClient _client;
 
-    public AuthTests(WebApplicationFactory<Program> factory)
+    public AuthTests(KanbanWebAppFactory factory)
     {
-        _client = factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                var toRemove = services.Where(d =>
-                    d.ServiceType.FullName != null &&
-                    d.ServiceType.FullName.Contains("DbContext")).ToList();
-                foreach (var d in toRemove) services.Remove(d);
-
-                var dbName = Guid.NewGuid().ToString();
-                services.AddDbContext<ApplicationDbContext>(options => options.UseInMemoryDatabase(dbName));
-            });
-        }).CreateClient();
+        _client = factory.CreateClient();
     }
 
     [Fact]
@@ -34,29 +14,11 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>
     {
         var response = await _client.PostAsJsonAsync("/register", new
         {
-            email = "test@test.com",
+            email = "auth_register@test.com",
             password = "Test123!"
         });
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-    }
 
-    [Fact]
-    public async Task Login_WithValidCredentials_ReturnsOk()
-    {
-        await _client.PostAsJsonAsync("/register", new
-        {
-            email = "login@test.com",
-            password = "Test123!"
-        });
-        var response = await _client.PostAsJsonAsync("/login", new
-        {
-            email = "login@test.com",
-            password = "Test123!"
-        });
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var tokenData = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.True(tokenData.TryGetProperty("accessToken", out _));
     }
 
     [Fact]
@@ -64,14 +26,68 @@ public class AuthTests : IClassFixture<WebApplicationFactory<Program>>
     {
         await _client.PostAsJsonAsync("/register", new
         {
-            email = "duplicate@test.com",
+            email = "auth_duplicate@test.com",
             password = "Test123!"
         });
+
         var response = await _client.PostAsJsonAsync("/register", new
         {
-            email = "duplicate@test.com",
+            email = "auth_duplicate@test.com",
             password = "Test123!"
         });
+
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_WithValidCredentials_ReturnsTokens()
+    {
+        await _client.PostAsJsonAsync("/register", new
+        {
+            email = "auth_login@test.com",
+            password = "Test123!"
+        });
+
+        var response = await _client.PostAsJsonAsync("/login", new
+        {
+            email = "auth_login@test.com",
+            password = "Test123!"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var data = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.True(data.TryGetProperty("accessToken", out var token));
+        Assert.False(string.IsNullOrEmpty(token.GetString()));
+    }
+
+    [Fact]
+    public async Task Login_WithWrongPassword_ReturnsUnauthorized()
+    {
+        await _client.PostAsJsonAsync("/register", new
+        {
+            email = "auth_wrongpass@test.com",
+            password = "Test123!"
+        });
+
+        var response = await _client.PostAsJsonAsync("/login", new
+        {
+            email = "auth_wrongpass@test.com",
+            password = "WrongPassword!"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Login_WithNonExistingEmail_ReturnsUnauthorized()
+    {
+        var response = await _client.PostAsJsonAsync("/login", new
+        {
+            email = "auth_ghost@test.com",
+            password = "Test123!"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }
