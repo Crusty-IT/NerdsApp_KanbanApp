@@ -57,8 +57,25 @@ public static class CardEndpoints
             var isMember = await boardService.IsMemberAsync(boardId, dto.UserId);
             if (!isMember) return Results.BadRequest("User is not a board member.");
 
-            var card = await cardService.AssignCardAsync(cardId, dto.UserId);
+            var assignedByUserId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var card = await cardService.AssignCardAsync(cardId, dto.UserId, assignedByUserId);
             return card is null ? Results.NotFound() : Results.Ok(new { card.Id, card.Title, card.AssignedToUserId });
+        });
+
+        cards.MapGet("/search", async (int boardId, string q, ICardService cardService,
+            IAuthorizationService authorizationService, ClaimsPrincipal user) =>
+        {
+            var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardMember");
+            if (!authResult.Succeeded) return Results.Forbid();
+
+            if (string.IsNullOrWhiteSpace(q))
+                return Results.BadRequest("Query cannot be empty.");
+
+            var results = await cardService.SearchAsync(boardId, q);
+            return Results.Ok(results.Select(c => new
+            {
+                c.Id, c.Title, c.Description, c.ColumnId, c.AssignedToUserId, c.DueDate, c.Color
+            }));
         });
     }
 }

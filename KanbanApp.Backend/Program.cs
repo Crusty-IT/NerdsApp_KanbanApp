@@ -40,6 +40,7 @@ app.MapProjectEndpoints();
 app.MapBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
+app.MapNotificationEndpoints();
 
 app.Run();
 

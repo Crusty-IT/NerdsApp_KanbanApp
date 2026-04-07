@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 public class CardService : ICardService
 {
     private readonly ApplicationDbContext _context;
+
     public CardService(ApplicationDbContext context) { _context = context; }
 
     public async Task<Card?> CreateAsync(int boardId, int columnId, string title, string? description, DateTime? dueDate, string? color)
@@ -61,13 +62,39 @@ public class CardService : ICardService
         return true;
     }
 
-    public async Task<Card?> AssignCardAsync(int cardId, string userId)
+    public async Task<Card?> AssignCardAsync(int cardId, string userId, string assignedByUserId)
     {
         var card = await _context.Cards.FindAsync(cardId);
         if (card == null) return null;
 
+        var previousUserId = card.AssignedToUserId;
         card.AssignedToUserId = userId;
+
+        // - tworzymy powiadomienie tylko jeśli przypisujemy nowego użytkownika
+        if (!string.IsNullOrEmpty(userId) && userId != previousUserId)
+        {
+            var assignedByUser = await _context.Users.FindAsync(assignedByUserId);
+            var notification = new Notification
+            {
+                UserId = userId,
+                CardId = cardId,
+                Message = $"You have been assigned to card \"{card.Title}\" by {assignedByUser?.UserName ?? "someone"}."
+            };
+            _context.Notifications.Add(notification);
+        }
+
         await _context.SaveChangesAsync();
         return card;
+    }
+
+    public async Task<List<Card>> SearchAsync(int boardId, string query)
+    {
+        var q = query.ToLower();
+        return await _context.Cards
+            .Include(c => c.Column)
+            .Where(c => c.Column.BoardId == boardId &&
+                        (c.Title.ToLower().Contains(q) ||
+                         (c.Description != null && c.Description.ToLower().Contains(q))))
+            .ToListAsync();
     }
 }
