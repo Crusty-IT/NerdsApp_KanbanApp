@@ -17,6 +17,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<BoardMember> BoardMembers { get; set; }
     public DbSet<Project> Projects { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,5 +51,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(rt => rt.User)
             .WithMany()
             .HasForeignKey(rt => rt.UserId);
+
+        modelBuilder.Entity<Notification>()
+            .HasOne(n => n.User)
+            .WithMany()
+            .HasForeignKey(n => n.UserId);
     }
 }

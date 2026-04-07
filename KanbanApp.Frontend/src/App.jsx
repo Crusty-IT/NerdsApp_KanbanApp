@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation, NavLink, Outlet } from 'react-router-dom';
 import api from './services/api';
 import { useTopbar } from './context/TopbarContext';
+import NotificationBell from './components/NotificationBell';
 import './App.css';
 
 export default function App() {
@@ -18,6 +19,7 @@ export default function App() {
 
     const handleLogout = () => {
         localStorage.removeItem('token');
+        localStorage.removeItem('refreshToken');
         navigate('/login');
     };
 
@@ -43,18 +45,10 @@ export default function App() {
                     {user && (
                         <div className="sidebar-user">
                             <div style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '50%',
-                                overflow: 'hidden',
-                                background: 'var(--accent-indigo)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '11px',
-                                fontWeight: '600',
-                                color: '#fff',
-                                flexShrink: 0
+                                width: '28px', height: '28px', borderRadius: '50%',
+                                overflow: 'hidden', background: 'var(--accent-indigo)',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                fontSize: '11px', fontWeight: '600', color: '#fff', flexShrink: 0
                             }}>
                                 {user.profilePictureUrl
                                     ? <img src={user.profilePictureUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -83,7 +77,8 @@ export default function App() {
                         {actions?.left}
                     </div>
                     <span className="topbar-title">{title}</span>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
+                        <NotificationBell />
                         {actions?.right}
                     </div>
                 </div>
