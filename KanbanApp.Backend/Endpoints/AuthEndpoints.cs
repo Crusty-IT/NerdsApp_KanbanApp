@@ -1,9 +1,13 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
+using KanbanApp.Backend.Data;
 using KanbanApp.Backend.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace KanbanApp.Backend.Endpoints;
@@ -12,7 +16,9 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this WebApplication app)
     {
-        app.MapPost("/register", async ([FromBody] RegisterRequest request, UserManager<ApplicationUser> userManager) =>
+        app.MapPost("/register", async (
+            [FromBody] RegisterRequest request,
+            UserManager<ApplicationUser> userManager) =>
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
                 return Results.BadRequest(new { message = "Email and password are required." });
@@ -21,22 +27,20 @@ public static class AuthEndpoints
                 ? request.Email.Split('@')[0]
                 : request.UserName;
 
-            var user = new ApplicationUser
-            {
-                UserName = userName,
-                Email = request.Email
-            };
-
+            var user = new ApplicationUser { UserName = userName, Email = request.Email };
             var result = await userManager.CreateAsync(user, request.Password);
+
             if (!result.Succeeded)
                 return Results.BadRequest(new { message = string.Join(", ", result.Errors.Select(e => e.Description)) });
 
             return Results.Ok(new { message = "User created successfully." });
-        });
+        }).RequireRateLimiting("auth");
 
-        app.MapPost("/login", async ([FromBody] LoginRequest request,
+        app.MapPost("/login", async (
+            [FromBody] LoginRequest request,
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
+            ApplicationDbContext db,
             IConfiguration configuration) =>
         {
             if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
@@ -50,14 +54,70 @@ public static class AuthEndpoints
             if (!result.Succeeded)
                 return Results.Unauthorized();
 
-            var key = configuration["Jwt:Key"] ?? "super-secret-key-that-is-at-least-32-chars-long";
-            var token = GenerateJwtToken(user, key);
+            var key = configuration["Jwt:Key"]!;
+            var accessToken = GenerateAccessToken(user, key);
+            var refreshToken = GenerateRefreshToken();
 
-            return Results.Ok(new { accessToken = token });
+            db.RefreshTokens.Add(new RefreshToken
+            {
+                Token = refreshToken,
+                UserId = user.Id,
+                ExpiresAt = DateTime.UtcNow.AddDays(7)
+            });
+            await db.SaveChangesAsync();
+
+            return Results.Ok(new { accessToken, refreshToken });
+        }).RequireRateLimiting("auth");
+
+        app.MapPost("/api/auth/refresh", async (
+            [FromBody] RefreshRequest request,
+            ApplicationDbContext db,
+            UserManager<ApplicationUser> userManager,
+            IConfiguration configuration) =>
+        {
+            var stored = await db.RefreshTokens
+                .Include(rt => rt.User)
+                .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+
+            if (stored == null || stored.IsRevoked || stored.ExpiresAt < DateTime.UtcNow)
+                return Results.Unauthorized();
+
+            stored.IsRevoked = true;
+
+            var newRefreshToken = GenerateRefreshToken();
+            db.RefreshTokens.Add(new RefreshToken
+            {
+                Token = newRefreshToken,
+                UserId = stored.UserId,
+                ExpiresAt = DateTime.UtcNow.AddDays(7)
+            });
+
+            await db.SaveChangesAsync();
+
+            var key = configuration["Jwt:Key"]!;
+            var accessToken = GenerateAccessToken(stored.User, key);
+
+            return Results.Ok(new { accessToken, refreshToken = newRefreshToken });
         });
+
+        app.MapPost("/api/auth/logout", async (
+            [FromBody] RefreshRequest request,
+            ApplicationDbContext db) =>
+        {
+            var stored = await db.RefreshTokens
+                .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+
+            if (stored != null)
+            {
+                stored.IsRevoked = true;
+                await db.SaveChangesAsync();
+            }
+
+            return Results.Ok(new { message = "Logged out." });
+        }).RequireAuthorization();
     }
 
-    private static string GenerateJwtToken(ApplicationUser user, string key)
+    private static string GenerateAccessToken(ApplicationUser user, string key)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var tokenKey = Encoding.UTF8.GetBytes(key);
@@ -69,7 +129,7 @@ public static class AuthEndpoints
                 new Claim(ClaimTypes.Name, user.UserName ?? ""),
                 new Claim(ClaimTypes.Email, user.Email ?? "")
             }),
-            Expires = DateTime.UtcNow.AddDays(7),
+            Expires = DateTime.UtcNow.AddMinutes(15),
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(tokenKey),
                 SecurityAlgorithms.HmacSha256Signature)
@@ -77,7 +137,14 @@ public static class AuthEndpoints
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
     }
+
+    private static string GenerateRefreshToken()
+    {
+        var bytes = RandomNumberGenerator.GetBytes(64);
+        return Convert.ToBase64String(bytes);
+    }
 }
 
 public record RegisterRequest(string Email, string Password, string? UserName = null);
 public record LoginRequest(string Email, string Password);
+public record RefreshRequest(string RefreshToken);

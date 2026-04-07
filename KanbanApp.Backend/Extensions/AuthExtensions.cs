@@ -1,8 +1,10 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using KanbanApp.Backend.Data;
 using KanbanApp.Backend.Models;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 
 namespace KanbanApp.Backend.Extensions;
@@ -29,11 +31,24 @@ public static class AuthExtensions
                     ValidateLifetime = true,
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(
-                        Encoding.UTF8.GetBytes(configuration["Jwt:Key"] ?? "super-secret-key-that-is-at-least-32-chars-long"))
+                        Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!))
                 };
             });
 
         services.AddAuthorization();
+
+        services.AddRateLimiter(options =>
+        {
+            options.AddFixedWindowLimiter("auth", limiterOptions =>
+            {
+                limiterOptions.PermitLimit = 5;
+                limiterOptions.Window = TimeSpan.FromMinutes(1);
+                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                limiterOptions.QueueLimit = 0;
+            });
+
+            options.RejectionStatusCode = 429;
+        });
 
         return services;
     }
