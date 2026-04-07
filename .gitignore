@@ -505,4 +505,5 @@ TestResults/
 
 # SQLite helper files
 kanban.db-shm
-kanban.db-wal
+kanban.db-walappsettings.Production.json
+appsettings.Production.json
