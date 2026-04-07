@@ -30,7 +30,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend");
-app.UseRateLimiter();
+
+var rateLimitingDisabled = builder.Configuration["RateLimiting:Disabled"] == "true";
+if (!rateLimitingDisabled)
+    app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 

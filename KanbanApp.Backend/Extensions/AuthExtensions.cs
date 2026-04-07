@@ -37,18 +37,22 @@ public static class AuthExtensions
 
         services.AddAuthorization();
 
-        services.AddRateLimiter(options =>
+        var disabled = configuration["RateLimiting:Disabled"] == "true";
+        if (!disabled)
         {
-            options.AddFixedWindowLimiter("auth", limiterOptions =>
+            services.AddRateLimiter(options =>
             {
-                limiterOptions.PermitLimit = 5;
-                limiterOptions.Window = TimeSpan.FromMinutes(1);
-                limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
-                limiterOptions.QueueLimit = 0;
-            });
+                options.AddFixedWindowLimiter("auth", limiterOptions =>
+                {
+                    limiterOptions.PermitLimit = 5;
+                    limiterOptions.Window = TimeSpan.FromMinutes(1);
+                    limiterOptions.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+                    limiterOptions.QueueLimit = 0;
+                });
 
-            options.RejectionStatusCode = 429;
-        });
+                options.RejectionStatusCode = 429;
+            });
+        }
 
         return services;
     }
