@@ -22,6 +22,15 @@ public class KanbanWebAppFactory : WebApplicationFactory<Program>
             var dbName = Guid.NewGuid().ToString();
             services.AddDbContext<ApplicationDbContext>(options =>
                 options.UseInMemoryDatabase(dbName));
+
+            var rateLimiter = services.FirstOrDefault(d =>
+                d.ServiceType.FullName != null &&
+                d.ServiceType.FullName.Contains("RateLimiter"));
+
+            if (rateLimiter != null)
+                services.Remove(rateLimiter);
         });
+
+        builder.UseSetting("RateLimiting:Disabled", "true");
     }
 }

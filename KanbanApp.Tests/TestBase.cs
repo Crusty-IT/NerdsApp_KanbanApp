@@ -16,7 +16,7 @@ public abstract class TestBase : IClassFixture<KanbanWebAppFactory>
         await client.PostAsJsonAsync("/register", new { email, password });
 
         var loginResponse = await client.PostAsJsonAsync(
-            "/login?useCookies=false&useSessionCookies=false",
+            "/login",
             new { email, password });
 
         loginResponse.EnsureSuccessStatusCode();
