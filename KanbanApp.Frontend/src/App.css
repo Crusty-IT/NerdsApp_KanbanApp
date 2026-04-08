@@ -26,12 +26,19 @@
     flex-shrink: 0;
 }
 
-.sidebar-logo span {
+.sidebar-logo-text {
     font-family: var(--font-mono);
     font-size: 16px;
     font-weight: 600;
-    color: var(--accent-cyan);
     letter-spacing: 0.05em;
+}
+
+.sidebar-logo .logo-shell {
+    color: #fff;
+}
+
+.sidebar-logo .logo-ty {
+    color: var(--accent-cyan);
 }
 
 .sidebar-logo .logo-dot {

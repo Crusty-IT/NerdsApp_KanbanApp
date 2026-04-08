@@ -31,7 +31,9 @@ export default function App() {
             <aside className="sidebar">
                 <div className="sidebar-logo">
                     <img src="/logo.png" alt="KanbanApp logo" style={{ height: '36px', width: 'auto' }} />
-                    <span>KANBAN<span className="logo-dot">.app</span></span>
+                    <span className="sidebar-logo-text">
+                        <span className="logo-shell">SHELL</span><span className="logo-ty">TY</span><span className="logo-dot">.KANBAN</span>
+                    </span>
                 </div>
                 <nav className="sidebar-nav">
                     <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}>
