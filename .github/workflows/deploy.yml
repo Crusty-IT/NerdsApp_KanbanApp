@@ -27,11 +27,15 @@ jobs:
       - name: Publish Backend
         run: dotnet publish KanbanApp.Backend/KanbanApp.Backend.csproj -c Release -o ./publish --self-contained -r linux-x64
 
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
       - name: Deploy Backend
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'shellty-kanban-api'
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ./publish
 
       - name: Setup Node
@@ -49,5 +53,4 @@ jobs:
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'shellty-kanban'
-          publish-profile: ${{ secrets.AZURE_FRONTEND_PUBLISH_PROFILE }}
           package: ./KanbanApp.Frontend/dist
