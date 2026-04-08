@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+const BASE_URL = import.meta.env.PROD
+    ? 'https://shellty-kanban-api.azurewebsites.net'
+    : 'http://localhost:5067';
+
 const api = axios.create({
-    baseURL: 'http://localhost:5067',
+    baseURL: BASE_URL,
 });
 
 api.interceptors.request.use(config => {
@@ -22,7 +26,7 @@ api.interceptors.response.use(
                 const refreshToken = localStorage.getItem('refreshToken');
                 if (!refreshToken) throw new Error('no refresh token');
 
-                const res = await axios.post('http://localhost:5067/api/auth/refresh', {
+                const res = await axios.post(`${BASE_URL}/api/auth/refresh`, {
                     refreshToken
                 });
 
