@@ -24,12 +24,30 @@ jobs:
       - name: Test
         run: dotnet test --no-build
 
-      - name: Publish
+      - name: Publish Backend
         run: dotnet publish KanbanApp.Backend/KanbanApp.Backend.csproj -c Release -o ./publish --self-contained -r linux-x64
 
-      - name: Deploy to Azure
+      - name: Deploy Backend
         uses: azure/webapps-deploy@v2
         with:
           app-name: 'shellty-kanban-api'
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: ./publish
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build Frontend
+        run: |
+          cd KanbanApp.Frontend
+          npm ci
+          npm run build
+
+      - name: Deploy Frontend
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: 'shellty-kanban'
+          publish-profile: ${{ secrets.AZURE_FRONTEND_PUBLISH_PROFILE }}
+          package: ./KanbanApp.Frontend/dist
