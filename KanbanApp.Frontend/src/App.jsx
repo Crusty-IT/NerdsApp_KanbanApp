@@ -32,7 +32,7 @@ export default function App() {
                 <div className="sidebar-logo">
                     <img src="/logo.png" alt="KanbanApp logo" style={{ height: '36px', width: 'auto' }} />
                     <span className="sidebar-logo-text">
-                        <span className="logo-shell">Shellty</span><span className="logo-ty">ty</span><span className="logo-dot">.kanban</span>
+                        <span className="logo-shell">Shell</span><span className="logo-ty">ty</span><span className="logo-dot">.kanban</span>
                     </span>
                 </div>
                 <nav className="sidebar-nav">
