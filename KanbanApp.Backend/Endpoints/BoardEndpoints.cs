@@ -23,8 +23,8 @@ public static class BoardEndpoints
         app.MapPost("/api/boards", async (CreateBoardDto dto, IBoardService boardService, ClaimsPrincipal user) =>
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            var board = await boardService.CreateAsync(dto.BoardName, null, userId!, dto.ProjectId);
-            return TypedResults.Created($"/api/boards/{board.Id}", new { board.Id, board.Name, board.Description, board.ProjectId });
+            var board = await boardService.CreateAsync(dto.BoardName, null, userId!, dto.ProjectId, dto.Color);
+            return TypedResults.Created($"/api/boards/{board.Id}", new { board.Id, board.Name, board.Description, board.Color, board.CreatedAt, board.ProjectId });
         }).RequireAuthorization();
 
         app.MapGet("/api/boards/{boardId}", async (
@@ -81,8 +81,9 @@ public static class BoardEndpoints
             if (!authResult.Succeeded) return Results.Forbid();
 
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            var board = await boardService.UpdateAsync(boardId, userId!, dto.Name, null);
-            return board is null ? Results.NotFound() : Results.Ok(new { board.Id, board.Name });
+            var board = await boardService.UpdateAsync(boardId, userId!, dto.Name, dto.Description, dto.Color);
+            if (board is null) return Results.NotFound();
+            return Results.Ok(new { board.Id, board.Name, board.Color, board.CreatedAt });
         }).RequireAuthorization();
 
         app.MapDelete("/api/boards/{boardId}", async (
