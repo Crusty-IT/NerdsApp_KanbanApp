@@ -4,6 +4,7 @@ public record BoardDetailDto(
     int Id,
     string Name,
     string? Description,
+    string Color,
     DateTime CreatedAt,
     List<ColumnDto> Columns
 );

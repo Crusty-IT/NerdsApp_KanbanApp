@@ -16,7 +16,7 @@ public static class BoardEndpoints
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var boards = await service.GetAllByUserAsync(userId!);
-            var result = boards.Select(b => new { b.Id, b.Name, b.Description, b.CreatedAt, b.ProjectId });
+            var result = boards.Select(b => new { b.Id, b.Name, b.Description, b.Color, b.CreatedAt, b.ProjectId });
             return Results.Ok(result);
         }).RequireAuthorization();
 
@@ -39,7 +39,11 @@ public static class BoardEndpoints
             if (board == null) return Results.NotFound();
 
             var dto = new BoardDetailDto(
-                board.Id, board.Name, board.Description, board.CreatedAt,
+                board.Id,
+                board.Name,
+                board.Description,
+                board.Color,
+                board.CreatedAt,
                 board.Columns.Select(c => new ColumnDto(
                     c.Id, c.Name, c.Position, c.Color,
                     c.Cards.Select(card => new CardDto(
