@@ -5,14 +5,9 @@ using Models;
 public interface IBoardService
 {
     Task<IEnumerable<Board>> GetAllByUserAsync(string userId);
-
     Task<Board?> GetByIdAsync(int boardId, string userId);
-
-    Task<Board> CreateAsync(string name, string? description, string ownerUserId, int? projectId = null);
-
-    Task<Board?> UpdateAsync(int boardId, string userId, string name, string? description);
-
+    Task<Board> CreateAsync(string name, string? description, string ownerUserId, int? projectId = null, string? color = null);
+    Task<Board?> UpdateAsync(int boardId, string userId, string name, string? description, string? color = null);
     Task<bool> DeleteAsync(int boardId, string userId);
-
     Task<bool> IsMemberAsync(int boardId, string userId);
 }

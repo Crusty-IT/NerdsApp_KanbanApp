@@ -31,9 +31,15 @@ public class BoardService : IBoardService
                                       && b.BoardMembers.Any(bm => bm.UserId == userId));
     }
 
-    public async Task<Board> CreateAsync(string name, string? description, string ownerUserId, int? projectId = null)
+    public async Task<Board> CreateAsync(string name, string? description, string ownerUserId, int? projectId = null, string? color = null)
     {
-        var board = new Board { Name = name, Description = description, ProjectId = projectId };
+        var board = new Board
+        {
+            Name = name,
+            Description = description,
+            ProjectId = projectId,
+            Color = color ?? "#00d4ff"
+        };
 
         _context.Boards.Add(board);
         _context.BoardMembers.Add(new BoardMember { Board = board, UserId = ownerUserId, Role = BoardRole.Owner });
@@ -42,13 +48,14 @@ public class BoardService : IBoardService
         return board;
     }
 
-    public async Task<Board?> UpdateAsync(int boardId, string userId, string name, string? description)
+    public async Task<Board?> UpdateAsync(int boardId, string userId, string name, string? description, string? color = null)
     {
         var board = await GetByIdAsync(boardId, userId);
         if (board == null) return null;
 
         board.Name = name;
         board.Description = description;
+        if (color != null) board.Color = color;
 
         await _context.SaveChangesAsync();
         return board;

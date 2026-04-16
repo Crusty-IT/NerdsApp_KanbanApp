@@ -119,7 +119,7 @@ export default function ProjectView() {
 
     const formatDate = (dateStr) => {
         if (!dateStr) return '';
-        const d = new Date(dateStr);
+        const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
         if (isNaN(d.getTime())) return '';
         return d.toLocaleDateString('pl-PL');
     };
