@@ -45,7 +45,7 @@ public static class ProjectEndpoints
             return Results.Ok(new
             {
                 project.Id, project.Name, project.Description, project.Color, project.CreatedAt,
-                Boards = project.Boards.Select(b => new { b.Id, b.Name, b.Description, b.CreatedAt })
+                Boards = project.Boards.Select(b => new { b.Id, b.Name, b.Description, b.Color, b.CreatedAt })
             });
         }).RequireAuthorization();
 
