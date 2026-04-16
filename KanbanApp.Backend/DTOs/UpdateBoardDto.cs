@@ -1,3 +1,3 @@
 namespace KanbanApp.Backend.DTOs;
 
-public record UpdateBoardDto(string Name);
+public record UpdateBoardDto(string Name, string? Description, string? Color);

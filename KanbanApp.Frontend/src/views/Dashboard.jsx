@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useTopbar } from '../context/TopbarContext';
 
-const PROJECT_COLORS = ['#00d4ff', '#10b981', '#ef4444', '#f59e0b', '#8b5cf6', '#3b82f6'];
+const PROJECT_COLORS = [
+    '#00d4ff', '#3b82f6', '#6366f1', '#8b5cf6',
+    '#10b981', '#14b8a6', '#f59e0b', '#ef4444',
+    '#ec4899', '#f97316', '#84cc16', '#06b6d4'
+];
 
 export default function Dashboard() {
     const [projects, setProjects] = useState([]);
@@ -56,7 +60,7 @@ export default function Dashboard() {
         setEditingProject(project);
         setName(project.name);
         setDescription(project.description || '');
-        setColor(project.color);
+        setColor(project.color || PROJECT_COLORS[0]);
         setIsEditing(true);
         setShowForm(true);
     };
@@ -66,7 +70,7 @@ export default function Dashboard() {
         if (!name.trim()) return;
         try {
             const response = await api.put(`/api/projects/${editingProject.id}`, { name: name.trim(), description: description.trim(), color });
-            setProjects(prev => prev.map(p => p.id === editingProject.id ? response.data : p));
+            setProjects(prev => prev.map(p => p.id === editingProject.id ? { ...p, ...response.data } : p));
             closeForm();
         } catch {
             setError('Failed to update project');
@@ -93,6 +97,13 @@ export default function Dashboard() {
         setError('');
     };
 
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('pl-PL');
+    };
+
     if (loading) return <div className="loading">loading projects...</div>;
 
     return (
@@ -115,7 +126,7 @@ export default function Dashboard() {
                             </div>
                             <div className="form-group">
                                 <label>Color</label>
-                                <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
                                     {PROJECT_COLORS.map(c => (
                                         <button key={c} type="button" onClick={() => setColor(c)} style={{
                                             width: '28px', height: '28px', borderRadius: '50%', background: c,
@@ -146,18 +157,18 @@ export default function Dashboard() {
                         <div
                             key={project.id}
                             className="project-card"
-                            style={{ '--project-color': project.color, position: 'relative' }}
+                            style={{ '--project-color': project.color || PROJECT_COLORS[0], position: 'relative' }}
                             onClick={() => navigate(`/projects/${project.id}`)}
                         >
                             <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
                                 <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
                                 <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
                             </div>
-                            <h3>{project.name}</h3>
+                            <h3 style={{ color: project.color || PROJECT_COLORS[0] }}>{project.name}</h3>
                             {project.description && <p>{project.description}</p>}
                             <div className="project-card-footer">
-                                <span className="project-card-meta">{new Date(project.createdAt).toLocaleDateString()}</span>
-                                <span className="project-color-dot" style={{ background: project.color }} />
+                                <span className="project-card-meta">{formatDate(project.createdAt)}</span>
+                                <span className="project-color-dot" style={{ background: project.color || PROJECT_COLORS[0] }} />
                             </div>
                         </div>
                     ))}

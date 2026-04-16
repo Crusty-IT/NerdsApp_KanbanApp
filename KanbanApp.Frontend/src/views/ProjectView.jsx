@@ -63,7 +63,7 @@ export default function ProjectView() {
             });
             setProject(prev => ({
                 ...prev,
-                boards: [...(prev.boards || []), { ...response.data, color: boardColor }]
+                boards: [...(prev.boards || []), response.data]
             }));
             closeForm();
         } catch {
@@ -90,7 +90,7 @@ export default function ProjectView() {
             });
             setProject(prev => ({
                 ...prev,
-                boards: prev.boards.map(b => b.id === editingBoard.id ? { ...response.data, color: boardColor } : b)
+                boards: prev.boards.map(b => b.id === editingBoard.id ? { ...b, ...response.data } : b)
             }));
             closeForm();
         } catch {
@@ -115,6 +115,13 @@ export default function ProjectView() {
         setBoardName('');
         setBoardColor(COLORS[0]);
         setError('');
+    };
+
+    const formatDate = (dateStr) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return '';
+        return d.toLocaleDateString('pl-PL');
     };
 
     if (loading) return <div className="loading">loading project...</div>;
@@ -168,18 +175,18 @@ export default function ProjectView() {
                             <div
                                 key={board.id}
                                 className="project-card"
-                                style={{ '--project-color': board.color || project.color, position: 'relative' }}
+                                style={{ '--project-color': board.color || project.color || COLORS[0], position: 'relative' }}
                                 onClick={() => navigate(`/board/${board.id}`)}
                             >
                                 <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
                                     <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
                                     <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
                                 </div>
-                                <h3>{board.name}</h3>
+                                <h3 style={{ color: board.color || project.color || COLORS[0] }}>{board.name}</h3>
                                 {board.description && <p>{board.description}</p>}
                                 <div className="project-card-footer">
-                                    <span className="project-card-meta">{new Date(board.createdAt).toLocaleDateString()}</span>
-                                    <span className="tag">board</span>
+                                    <span className="project-card-meta">{formatDate(board.createdAt)}</span>
+                                    <span className="project-color-dot" style={{ background: board.color || project.color || COLORS[0] }} />
                                 </div>
                             </div>
                         ))}
