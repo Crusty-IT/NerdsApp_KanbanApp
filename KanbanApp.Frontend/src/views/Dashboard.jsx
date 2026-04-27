@@ -78,6 +78,16 @@ export default function Dashboard() {
     };
 
     const handleDelete = async (project) => {
+        const details = await api.get(`/api/projects/${project.id}`);
+        const boardCount = details.data.boards?.length ?? 0;
+
+        if (boardCount > 0) {
+            const confirmed = window.confirm(
+                `"${project.name}" contains ${boardCount} board${boardCount > 1 ? 's' : ''} with all their cards.\n\nAre you sure you want to permanently delete everything?`
+            );
+            if (!confirmed) return;
+        }
+
         try {
             await api.delete(`/api/projects/${project.id}`);
             setProjects(prev => prev.filter(p => p.id !== project.id));

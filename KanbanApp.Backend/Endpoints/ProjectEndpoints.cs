@@ -64,10 +64,28 @@ public static class ProjectEndpoints
         app.MapDelete("/api/projects/{projectId}", async (int projectId, ApplicationDbContext db, ClaimsPrincipal user) =>
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId);
+
+            var project = await db.Projects
+                .Include(p => p.Boards)
+                .ThenInclude(b => b.Columns)
+                .ThenInclude(c => c.Cards)
+                .Include(p => p.Boards)
+                .ThenInclude(b => b.BoardMembers)
+                .FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId);
+
             if (project == null) return Results.NotFound();
+
+            foreach (var board in project.Boards)
+            {
+                db.Cards.RemoveRange(board.Columns.SelectMany(c => c.Cards));
+                db.Columns.RemoveRange(board.Columns);
+                db.BoardMembers.RemoveRange(board.BoardMembers);
+            }
+
+            db.Boards.RemoveRange(project.Boards);
             db.Projects.Remove(project);
             await db.SaveChangesAsync();
+
             return Results.NoContent();
         }).RequireAuthorization();
     }

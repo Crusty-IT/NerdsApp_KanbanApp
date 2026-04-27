@@ -99,6 +99,16 @@ export default function ProjectView() {
     };
 
     const handleDelete = async (board) => {
+        const details = await api.get(`/api/boards/${board.id}`);
+        const cardCount = details.data.columns?.reduce((sum, col) => sum + (col.cards?.length ?? 0), 0) ?? 0;
+
+        if (cardCount > 0) {
+            const confirmed = window.confirm(
+                `"${board.name}" contains ${cardCount} card${cardCount > 1 ? 's' : ''}.\n\nAre you sure you want to permanently delete this board and all its cards?`
+            );
+            if (!confirmed) return;
+        }
+
         try {
             await api.delete(`/api/boards/${board.id}`);
             setProject(prev => ({ ...prev, boards: prev.boards.filter(b => b.id !== board.id) }));
