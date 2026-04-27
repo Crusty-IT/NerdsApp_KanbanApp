@@ -63,10 +63,20 @@ public class BoardService : IBoardService
 
     public async Task<bool> DeleteAsync(int boardId, string userId)
     {
-        var board = await GetByIdAsync(boardId, userId);
+        var board = await _context.Boards
+            .Include(b => b.Columns)
+            .ThenInclude(c => c.Cards)
+            .Include(b => b.BoardMembers)
+            .FirstOrDefaultAsync(b => b.Id == boardId
+                                      && b.BoardMembers.Any(bm => bm.UserId == userId));
+
         if (board == null) return false;
 
+        _context.Cards.RemoveRange(board.Columns.SelectMany(c => c.Cards));
+        _context.Columns.RemoveRange(board.Columns);
+        _context.BoardMembers.RemoveRange(board.BoardMembers);
         _context.Boards.Remove(board);
+
         await _context.SaveChangesAsync();
         return true;
     }
