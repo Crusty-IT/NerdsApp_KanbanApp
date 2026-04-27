@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useTopbar } from '../context/TopbarContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const COLORS = [
     '#00d4ff', '#3b82f6', '#6366f1', '#8b5cf6',
@@ -20,6 +21,7 @@ export default function ProjectView() {
     const [boardName, setBoardName] = useState('');
     const [boardColor, setBoardColor] = useState(COLORS[0]);
     const [error, setError] = useState('');
+    const [confirm, setConfirm] = useState(null);
     const { setTitle, setActions } = useTopbar();
 
     useEffect(() => {
@@ -98,20 +100,26 @@ export default function ProjectView() {
         }
     };
 
-    const handleDelete = async (board) => {
+    const handleDeleteClick = async (board) => {
         const details = await api.get(`/api/boards/${board.id}`);
         const cardCount = details.data.columns?.reduce((sum, col) => sum + (col.cards?.length ?? 0), 0) ?? 0;
 
-        if (cardCount > 0) {
-            const confirmed = window.confirm(
-                `"${board.name}" contains ${cardCount} card${cardCount > 1 ? 's' : ''}.\n\nAre you sure you want to permanently delete this board and all its cards?`
-            );
-            if (!confirmed) return;
-        }
+        const message = cardCount > 0
+            ? `"${board.name}" contains ${cardCount} card${cardCount > 1 ? 's' : ''}. This action cannot be undone.`
+            : `Are you sure you want to delete "${board.name}"? This action cannot be undone.`;
 
+        setConfirm({
+            title: 'Delete Board',
+            message,
+            onConfirm: () => handleDeleteConfirmed(board.id)
+        });
+    };
+
+    const handleDeleteConfirmed = async (boardId) => {
+        setConfirm(null);
         try {
-            await api.delete(`/api/boards/${board.id}`);
-            setProject(prev => ({ ...prev, boards: prev.boards.filter(b => b.id !== board.id) }));
+            await api.delete(`/api/boards/${boardId}`);
+            setProject(prev => ({ ...prev, boards: prev.boards.filter(b => b.id !== boardId) }));
         } catch {
             setError('Failed to delete board');
             setTimeout(() => setError(null), 3000);
@@ -140,6 +148,15 @@ export default function ProjectView() {
     return (
         <div className="page-content fade-in">
             {error && <p className="error-msg" style={{ marginBottom: '12px' }}>{error}</p>}
+
+            {confirm && (
+                <ConfirmDialog
+                    title={confirm.title}
+                    message={confirm.message}
+                    onConfirm={confirm.onConfirm}
+                    onCancel={() => setConfirm(null)}
+                />
+            )}
 
             {showForm && (
                 <div className="modal-overlay" onClick={closeForm}>
@@ -179,36 +196,34 @@ export default function ProjectView() {
                     <button className="btn-primary" onClick={() => setShowForm(true)}>+ New Board</button>
                 </div>
             ) : (
-                <>
-                    <div className="projects-grid">
-                        {project.boards.map(board => (
-                            <div
-                                key={board.id}
-                                className="project-card"
-                                style={{ '--project-color': board.color || project.color || COLORS[0], position: 'relative' }}
-                                onClick={() => navigate(`/board/${board.id}`)}
-                            >
-                                <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
-                                    <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
-                                    <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
-                                </div>
-                                <h3 style={{ color: board.color || project.color || COLORS[0] }}>{board.name}</h3>
-                                {board.description && <p>{board.description}</p>}
-                                <div className="project-card-footer">
-                                    <span className="project-card-meta">{formatDate(board.createdAt)}</span>
-                                    <span className="project-color-dot" style={{ background: board.color || project.color || COLORS[0] }} />
-                                </div>
-                            </div>
-                        ))}
+                <div className="projects-grid">
+                    {project.boards.map(board => (
                         <div
+                            key={board.id}
                             className="project-card"
-                            style={{ '--project-color': 'var(--border)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '120px', cursor: 'pointer' }}
-                            onClick={() => setShowForm(true)}
+                            style={{ '--project-color': board.color || project.color || COLORS[0], position: 'relative' }}
+                            onClick={() => navigate(`/board/${board.id}`)}
                         >
-                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>+ New Board</span>
+                            <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
+                                <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
+                                <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
+                            </div>
+                            <h3 style={{ color: board.color || project.color || COLORS[0] }}>{board.name}</h3>
+                            {board.description && <p>{board.description}</p>}
+                            <div className="project-card-footer">
+                                <span className="project-card-meta">{formatDate(board.createdAt)}</span>
+                                <span className="project-color-dot" style={{ background: board.color || project.color || COLORS[0] }} />
+                            </div>
                         </div>
+                    ))}
+                    <div
+                        className="project-card"
+                        style={{ '--project-color': 'var(--border)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '120px', cursor: 'pointer' }}
+                        onClick={() => setShowForm(true)}
+                    >
+                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>+ New Board</span>
                     </div>
-                </>
+                </div>
             )}
         </div>
     );

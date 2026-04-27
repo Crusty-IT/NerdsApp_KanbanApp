@@ -1,0 +1,107 @@
+.auth-layout {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+    background-image:
+            radial-gradient(ellipse at 20% 50%, #00d4ff08 0%, transparent 60%),
+            radial-gradient(ellipse at 80% 20%, #3b82f608 0%, transparent 60%);
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 40px;
+    box-shadow: var(--glow-cyan);
+    margin: auto;
+}
+
+.auth-card h1 {
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+
+.auth-card .auth-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 28px;
+    font-family: var(--font-mono);
+}
+
+.auth-footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.projects-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.project-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+
+.project-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--project-color, var(--accent-cyan));
+}
+
+.project-card:hover {
+    border-color: var(--project-color, var(--accent-cyan));
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px #00000040;
+}
+
+.project-card h3 {
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+
+.project-card p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
+}
+
+.project-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.project-card-meta {
+    font-size: 12px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.project-color-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--project-color, var(--accent-cyan));
+}
+
+@media (max-width: 768px) {
+    .projects-grid { grid-template-columns: 1fr; }
+}

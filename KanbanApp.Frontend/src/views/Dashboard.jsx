@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useTopbar } from '../context/TopbarContext';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const PROJECT_COLORS = [
     '#00d4ff', '#3b82f6', '#6366f1', '#8b5cf6',
@@ -19,6 +20,7 @@ export default function Dashboard() {
     const [description, setDescription] = useState('');
     const [color, setColor] = useState(PROJECT_COLORS[0]);
     const [error, setError] = useState('');
+    const [confirm, setConfirm] = useState(null);
     const navigate = useNavigate();
     const { setTitle, setActions } = useTopbar();
 
@@ -77,20 +79,26 @@ export default function Dashboard() {
         }
     };
 
-    const handleDelete = async (project) => {
+    const handleDeleteClick = async (project) => {
         const details = await api.get(`/api/projects/${project.id}`);
         const boardCount = details.data.boards?.length ?? 0;
 
-        if (boardCount > 0) {
-            const confirmed = window.confirm(
-                `"${project.name}" contains ${boardCount} board${boardCount > 1 ? 's' : ''} with all their cards.\n\nAre you sure you want to permanently delete everything?`
-            );
-            if (!confirmed) return;
-        }
+        const message = boardCount > 0
+            ? `"${project.name}" contains ${boardCount} board${boardCount > 1 ? 's' : ''} with all their cards. This action cannot be undone.`
+            : `Are you sure you want to delete "${project.name}"? This action cannot be undone.`;
 
+        setConfirm({
+            title: 'Delete Project',
+            message,
+            onConfirm: () => handleDeleteConfirmed(project.id)
+        });
+    };
+
+    const handleDeleteConfirmed = async (projectId) => {
+        setConfirm(null);
         try {
-            await api.delete(`/api/projects/${project.id}`);
-            setProjects(prev => prev.filter(p => p.id !== project.id));
+            await api.delete(`/api/projects/${projectId}`);
+            setProjects(prev => prev.filter(p => p.id !== projectId));
         } catch {
             setError('Failed to delete project');
             setTimeout(() => setError(null), 3000);
@@ -119,6 +127,15 @@ export default function Dashboard() {
     return (
         <div className="page-content fade-in">
             {error && <p className="error-msg" style={{ marginBottom: '12px' }}>{error}</p>}
+
+            {confirm && (
+                <ConfirmDialog
+                    title={confirm.title}
+                    message={confirm.message}
+                    onConfirm={confirm.onConfirm}
+                    onCancel={() => setConfirm(null)}
+                />
+            )}
 
             {showForm && (
                 <div className="modal-overlay" onClick={closeForm}>
@@ -172,7 +189,7 @@ export default function Dashboard() {
                         >
                             <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
                                 <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
-                                <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDelete(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
+                                <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
                             </div>
                             <h3 style={{ color: project.color || PROJECT_COLORS[0] }}>{project.name}</h3>
                             {project.description && <p>{project.description}</p>}

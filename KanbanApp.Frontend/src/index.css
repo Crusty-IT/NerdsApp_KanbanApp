@@ -108,106 +108,10 @@ button:disabled {
     cursor: not-allowed;
 }
 
-::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-}
-
-::-webkit-scrollbar-track {
-    background: var(--bg-primary);
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--border);
-    border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: var(--text-secondary);
-}
-
-.btn-primary {
-    background: var(--accent-cyan);
-    color: #080c14;
-    padding: 10px 20px;
-    font-weight: 600;
-}
-
-.btn-primary:hover {
-    background: #00bde0;
-    box-shadow: var(--glow-cyan);
-}
-
-.btn-secondary {
-    background: transparent;
-    color: var(--text-primary);
-    border: 1px solid var(--border);
-    padding: 10px 20px;
-}
-
-.btn-secondary:hover {
-    border-color: var(--accent-cyan);
-    color: var(--accent-cyan);
-}
-
-.btn-danger {
-    background: transparent;
-    color: var(--color-red);
-    border: 1px solid var(--color-red)44;
-    padding: 6px 14px;
-}
-
-.btn-danger:hover {
-    background: var(--color-red)11;
-}
-
-.tag {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: var(--border);
-    color: var(--accent-cyan);
-}
-
-.error-msg {
-    color: var(--color-red);
-    font-size: 13px;
-    padding: 8px 12px;
-    background: #ef444411;
-    border: 1px solid #ef444433;
-    border-radius: var(--radius);
-}
-
-.success-msg {
-    color: var(--color-green);
-    font-size: 13px;
-    padding: 8px 12px;
-    background: #10b98111;
-    border: 1px solid #10b98133;
-    border-radius: var(--radius);
-}
-
-.loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 200px;
-    color: var(--text-secondary);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    gap: 8px;
-}
-
-.loading::before {
-    content: '';
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent-cyan);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
 
 @keyframes spin {
     to { transform: rotate(360deg); }
@@ -216,8 +120,4 @@ button:disabled {
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(8px); }
     to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-in {
-    animation: fadeIn 0.3s ease forwards;
 }

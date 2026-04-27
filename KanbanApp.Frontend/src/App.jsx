@@ -3,7 +3,6 @@ import { useNavigate, useLocation, NavLink, Outlet } from 'react-router-dom';
 import api from './services/api';
 import { useTopbar } from './context/TopbarContext';
 import NotificationBell from './components/NotificationBell';
-import './App.css';
 
 export default function App() {
     const navigate = useNavigate();
