@@ -1,11 +1,13 @@
-name: Deploy to Azure
+name: CI
 
 on:
   push:
+    branches: [main, develop]
+  pull_request:
     branches: [main]
 
 jobs:
-  build-and-deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,25 +20,11 @@ jobs:
       - name: Restore
         run: dotnet restore
 
-      - name: Build
+      - name: Build Backend
         run: dotnet build --no-restore
 
-      - name: Test
+      - name: Test Backend
         run: dotnet test --no-build
-
-      - name: Publish Backend
-        run: dotnet publish KanbanApp.Backend/KanbanApp.Backend.csproj -c Release -o ./publish --self-contained -r linux-x64
-
-      - name: Login to Azure
-        uses: azure/login@v1
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      - name: Deploy Backend
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: 'shellty-kanban-api'
-          package: ./publish
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -48,9 +36,3 @@ jobs:
           cd KanbanApp.Frontend
           npm ci
           npm run build
-
-      - name: Deploy Frontend
-        uses: azure/webapps-deploy@v2
-        with:
-          app-name: 'shellty-kanban'
-          package: ./KanbanApp.Frontend/dist
