@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const BASE_URL = import.meta.env.PROD
-    ? 'https://shellty-kanban-api.azurewebsites.net'
+    ? 'https://shellty-kanban-api.onrender.com'
     : 'http://localhost:5067';
 
 const api = axios.create({
