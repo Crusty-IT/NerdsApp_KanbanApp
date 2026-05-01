@@ -4,15 +4,17 @@
 
 ![.NET](https://img.shields.io/badge/.NET_10-512BD4?style=flat-square&logo=dotnet&logoColor=white)
 ![EF Core](https://img.shields.io/badge/EF_Core_10-512BD4?style=flat-square&logo=dotnet&logoColor=white)
-![Azure](https://img.shields.io/badge/Azure_App_Service-0078D4?style=flat-square&logo=microsoftazure&logoColor=white)
+![Netlify](https://img.shields.io/badge/Netlify-00C7B7?style=flat-square&logo=netlify&logoColor=white)
+![Render](https://img.shields.io/badge/Render-46E3B7?style=flat-square&logo=render&logoColor=white)
+![Neon](https://img.shields.io/badge/Neon-00E599?style=flat-square&logo=neon&logoColor=black)
 ![JWT](https://img.shields.io/badge/JWT-black?style=flat-square&logo=jsonwebtokens&logoColor=white)
 ![xUnit](https://img.shields.io/badge/xUnit-60_testów-success?style=flat-square)
 ![CI/CD](https://img.shields.io/badge/GitHub_Actions-2088FF?style=flat-square&logo=githubactions&logoColor=white)
 
 RESTful API backendowe dla zespołowej aplikacji Kanban do zarządzania zadaniami.
-Zbudowane w ASP.NET Core 10 Minimal API, wdrożone na Azure App Service.
+Zbudowane w ASP.NET Core 10 Minimal API, wdrożone na Render i Netlify.
 
-**[🌐 Live App](https://shellty-kanban.azurewebsites.net) · [📖 Swagger UI](https://shellty-kanban-api.azurewebsites.net/swagger) · [👤 LinkedIn](https://www.linkedin.com/in/tomasz-skorupski-shellty)**
+**[🌐 Live App](https://shellty-kanban.netlify.app)  · [👤 LinkedIn](https://www.linkedin.com/in/tomasz-skorupski-shellty)**
 
 </div>
 
@@ -49,9 +51,9 @@ Backend dostarcza kompletne REST API do zarządzania zespołami, projektami, tab
 | **Framework** | ASP.NET Core 10 – Minimal API |
 | **ORM** | Entity Framework Core 10 |
 | **Auth** | ASP.NET Identity + JWT Bearer |
-| **Baza danych** | SQLite (lokalnie) → Azure SQL Serverless (produkcja) |
+| **Baza danych** | SQLite (lokalnie) → Neon PostgreSQL (produkcja) |
 | **Testy** | xUnit + EF InMemory + WebApplicationFactory |
-| **CI/CD** | GitHub Actions → Azure App Service |
+| **CI/CD** | GitHub Actions → Render / Netlify |
 
 ---
 
@@ -180,19 +182,18 @@ JSON
   }
 }
 Wdrożenie
-Wdrażane na Azure App Service przy każdym pushu do main przez GitHub Actions.
+Wdrażane na Render (Backend) i Netlify (Frontend) przy każdym pushu do main przez GitHub Actions.
 
 
 push do main
   ├── dotnet restore + build
   ├── dotnet test              (wszystkie 60 testów musi przejść)
   ├── dotnet publish
-  └── deploy → shellty-kanban-api (Azure App Service B1)
+  └── deploy
 Zasób	Nazwa
-Backend	shellty-kanban-api.azurewebsites.net
-Frontend	shellty-kanban.azurewebsites.net
-Baza danych	Azure SQL Serverless – shellty-kanban-db
-Wymagany GitHub secret: AZURE_CREDENTIALS (JSON service principal)
+Backend	https://shellty-kanban.onrender.com
+Frontend	https://shellty-kanban.netlify.app
+Baza danych	PostgreSQL – Neon (https://neon.com)
 
 Autor
 Shellty – Tomasz Skorupski
