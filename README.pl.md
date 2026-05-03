@@ -191,7 +191,7 @@ push do main
   ├── dotnet publish
   └── deploy
 Zasób	Nazwa
-Backend	https://shellty-kanban.onrender.com
+Backend	https://smartquote-backend-fzh5.onrender.com
 Frontend	https://shellty-kanban.netlify.app
 Baza danych	PostgreSQL – Neon (https://neon.com)
 

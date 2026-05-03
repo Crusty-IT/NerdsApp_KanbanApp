@@ -49,6 +49,7 @@ app.MapBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
 app.MapNotificationEndpoints();
+app.MapHealthEndpoints();
 
 app.Run();
 

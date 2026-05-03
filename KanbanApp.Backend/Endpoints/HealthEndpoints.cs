@@ -1,6 +1,13 @@
 namespace KanbanApp.Backend.Endpoints;
 
-public class HealthEndpoints
+public static class HealthEndpoints
 {
-    
+    public static void MapHealthEndpoints(this WebApplication app)
+    {
+        app.MapGet("/health", () => Results.Ok(new
+        {
+            status = "healthy",
+            timestamp = DateTime.UtcNow
+        }));
+    }
 }

@@ -190,7 +190,7 @@ push to main
   ├── dotnet publish
   └── deploy
 Resource	Name
-Backend	https://shellty-kanban.onrender.com
+Backend	https://smartquote-backend-fzh5.onrender.com
 Frontend	https://shellty-kanban.netlify.app
 Database	https://neon.com
 
