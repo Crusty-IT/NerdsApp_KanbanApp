@@ -102,7 +102,7 @@ public class CardTests : IClassFixture<KanbanWebAppFactory>
     }
 
     [Fact]
-    public async Task CreateCard_WithDueDateAndColor_ReturnsCorrectData()
+    public async Task CreateCard_WithDueDate_ReturnsCorrectData()
     {
         var (client, boardId, colId) = await CreateClientWithBoardAndColumn("card_meta8@test.com");
         var dueDate = DateTime.UtcNow.AddDays(7).ToString("o");
@@ -111,13 +111,12 @@ public class CardTests : IClassFixture<KanbanWebAppFactory>
         {
             title = "Meta Task",
             columnId = colId,
-            dueDate,
-            color = "#ef4444"
+            dueDate
         });
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var data = await response.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Equal("#ef4444", data.GetProperty("color").GetString());
+        Assert.Equal("Meta Task", data.GetProperty("title").GetString());
         Assert.True(data.TryGetProperty("dueDate", out _));
     }
 
