@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
+import api from '../services/api';
 import Column from '../components/Column';
 import ColumnForm from '../components/ColumnForm';
-import InviteModal from '../components/InviteModal';
 import { useBoardData } from '../hooks/useBoardData';
 import { useColumns } from '../hooks/useColumns';
 import { useCards } from '../hooks/useCards';
@@ -14,7 +14,8 @@ import { useBoardTopbar } from '../hooks/useBoardTopbar';
 export default function BoardView() {
     const { boardId } = useParams();
     const navigate = useNavigate();
-    const [showInvite, setShowInvite] = useState(false);
+    const [showMembers, setShowMembers] = useState(false);
+    const [projectMembers, setProjectMembers] = useState([]);
     const [error, setError] = useState(null);
     const [filterUserId, setFilterUserId] = useState('');
 
@@ -24,17 +25,41 @@ export default function BoardView() {
     const { searchQuery, setSearchQuery, searchResults, handleSearch, clearSearch } = useCardSearch(boardId, setError);
     const { handleDragEnd } = useDragDrop(boardId, board, setBoard, setError);
 
-    const handleInvite = async (email) => {
+    const fetchProjectMembers = async () => {
+        if (!board?.projectId) return;
         try {
-            await import('../services/api').then(m => m.default.post(`/api/boards/${boardId}/members`, { email }));
-            await refreshMembers();
-            return { success: true, message: 'User invited successfully!' };
+            const response = await api.get(`/api/projects/${board.projectId}/members`);
+            setProjectMembers(response.data);
         } catch (err) {
-            return { success: false, message: err.response?.data || 'Failed to invite user' };
+            console.error('Failed to fetch project members', err);
         }
     };
 
-    useBoardTopbar({ board, boardMembers, filterUserId, setFilterUserId, searchQuery, setSearchQuery, handleSearch, clearSearch, navigate, setShowInvite });
+    const handleRemoveMember = async (memberId) => {
+        if (!board?.projectId) return;
+        try {
+            await api.delete(`/api/projects/${board.projectId}/members/${memberId}`);
+            setProjectMembers(prev => prev.filter(m => m.userId !== memberId));
+        } catch {
+            setError('Failed to remove member');
+        }
+    };
+
+    useBoardTopbar({
+        board,
+        boardMembers,
+        filterUserId,
+        setFilterUserId,
+        searchQuery,
+        setSearchQuery,
+        handleSearch,
+        clearSearch,
+        navigate,
+        setShowMembers: () => {
+            setShowMembers(true);
+            fetchProjectMembers();
+        }
+    });
 
     if (loading) return <div className="loading">loading board...</div>;
     if (!board) return <div className="page-content"><p>Board not found.</p></div>;
@@ -99,7 +124,7 @@ export default function BoardView() {
                         COLORS={columns.COLORS}
                     />
                 ) : (
-                    <button className="btn-secondary" onClick={() => columns.setShowColumnForm(true)} style={{ minWidth: '260px', flexShrink: 0, padding: '14px' }}>
+                    <button className="btn-secondary" onClick={() => columns.setShowColumnForm(true)} style={{ minWidth: '320px', flexShrink: 0, padding: '14px' }}>
                         + Add Column
                     </button>
                 )}
@@ -119,7 +144,39 @@ export default function BoardView() {
                 </div>
             )}
 
-            <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} onInvite={handleInvite} />
+            {showMembers && board.projectId && (
+                <div className="modal-overlay" onClick={() => setShowMembers(false)}>
+                    <div className="modal-box" onClick={e => e.stopPropagation()}>
+                        <h2>Project Members</h2>
+                        {projectMembers.length === 0 ? (
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>No members yet.</p>
+                        ) : (
+                            <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {projectMembers.map(m => (
+                                    <li key={m.userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            {m.profilePictureUrl
+                                                ? <img src={m.profilePictureUrl} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                                                : <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👤</div>
+                                            }
+                                            <div>
+                                                <div style={{ fontSize: '13px', fontWeight: 500 }}>{m.userName}</div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{m.role}</div>
+                                            </div>
+                                        </div>
+                                        {board.isOwner && (
+                                            <button className="btn-danger" onClick={() => handleRemoveMember(m.userId)} style={{ padding: '2px 8px', fontSize: '12px' }}>Remove</button>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        <div className="modal-actions">
+                            <button className="btn-secondary" onClick={() => setShowMembers(false)}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

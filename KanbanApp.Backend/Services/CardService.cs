@@ -10,7 +10,7 @@ public class CardService : ICardService
 
     public CardService(ApplicationDbContext context) { _context = context; }
 
-    public async Task<Card?> CreateAsync(int boardId, int columnId, string title, string? description, DateTime? dueDate, string? color)
+    public async Task<Card?> CreateAsync(int boardId, int columnId, string title, string? description, DateTime? dueDate, int? priority)
     {
         var column = await _context.Columns
             .FirstOrDefaultAsync(c => c.Id == columnId && c.BoardId == boardId);
@@ -22,14 +22,14 @@ public class CardService : ICardService
             Description = description,
             ColumnId = columnId,
             DueDate = dueDate,
-            Color = color
+            Priority = priority
         };
         _context.Cards.Add(card);
         await _context.SaveChangesAsync();
         return card;
     }
 
-    public async Task<Card?> UpdateAsync(int boardId, int cardId, string title, string? description, int columnId, string? assignedToUserId, DateTime? dueDate, string? color)
+    public async Task<Card?> UpdateAsync(int boardId, int cardId, string title, string? description, int columnId, string? assignedToUserId, DateTime? dueDate, int? priority)
     {
         var card = await _context.Cards
             .Include(c => c.Column)
@@ -45,7 +45,7 @@ public class CardService : ICardService
         card.ColumnId = columnId;
         card.AssignedToUserId = assignedToUserId;
         card.DueDate = dueDate;
-        card.Color = color;
+        card.Priority = priority;
         await _context.SaveChangesAsync();
         return card;
     }
@@ -70,7 +70,6 @@ public class CardService : ICardService
         var previousUserId = card.AssignedToUserId;
         card.AssignedToUserId = userId;
 
-        // - tworzymy powiadomienie tylko jeśli przypisujemy nowego użytkownika
         if (!string.IsNullOrEmpty(userId) && userId != previousUserId)
         {
             var assignedByUser = await _context.Users.FindAsync(assignedByUserId);

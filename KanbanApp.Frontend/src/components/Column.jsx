@@ -37,8 +37,8 @@ export default function Column({ column, index, onCreateCard, onEdit, onDelete, 
                             borderTop: `3px solid ${color}`,
                             borderRadius: 'var(--radius-lg)',
                             padding: '14px',
-                            minWidth: '260px',
-                            maxWidth: '260px',
+                            minWidth: '320px',
+                            maxWidth: '320px',
                             flexShrink: 0,
                             display: 'flex',
                             flexDirection: 'column',
@@ -97,6 +97,7 @@ export default function Column({ column, index, onCreateCard, onEdit, onDelete, 
                                                         onUpdate={onUpdateCard}
                                                         onDelete={onDeleteCard}
                                                         boardMembers={boardMembers}
+                                                        columnColor={color}
                                                     />
                                                 </div>
                                             )}

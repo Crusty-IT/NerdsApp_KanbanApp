@@ -6,6 +6,8 @@ public record BoardDetailDto(
     string? Description,
     string Color,
     DateTime CreatedAt,
+    int? ProjectId,
+    bool IsOwner,
     List<ColumnDto> Columns
 );
 
@@ -25,5 +27,5 @@ public record CardDto(
     DateTime CreatedAt,
     string? AssignedToUserId,
     DateTime? DueDate,
-    string? Color
+    int? Priority
 );

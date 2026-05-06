@@ -28,7 +28,7 @@ public static class BoardEndpoints
         }).RequireAuthorization();
 
         app.MapGet("/api/boards/{boardId}", async (
-            int boardId, IBoardService boardService,
+            int boardId, IBoardService boardService, ApplicationDbContext db,
             IAuthorizationService authorizationService, ClaimsPrincipal user) =>
         {
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardMember");
@@ -38,16 +38,28 @@ public static class BoardEndpoints
             var board = await boardService.GetByIdAsync(boardId, userId!);
             if (board == null) return Results.NotFound();
 
+            var isBoardOwner = await db.BoardMembers
+                .AnyAsync(m => m.BoardId == boardId && m.UserId == userId && m.Role == BoardRole.Owner);
+
+            var isProjectOwner = false;
+            if (board.ProjectId.HasValue)
+            {
+                var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == board.ProjectId);
+                isProjectOwner = project?.OwnerId == userId;
+            }
+
             var dto = new BoardDetailDto(
                 board.Id,
                 board.Name,
                 board.Description,
                 board.Color,
                 board.CreatedAt,
+                board.ProjectId,
+                isBoardOwner || isProjectOwner,
                 board.Columns.Select(c => new ColumnDto(
                     c.Id, c.Name, c.Position, c.Color,
                     c.Cards.Select(card => new CardDto(
-                        card.Id, card.Title, card.Description, card.Position, card.CreatedAt, card.AssignedToUserId, card.DueDate, card.Color
+                        card.Id, card.Title, card.Description, card.Position, card.CreatedAt, card.AssignedToUserId, card.DueDate, card.Priority
                     )).ToList()
                 )).ToList()
             );
@@ -70,6 +82,7 @@ public static class BoardEndpoints
                     userId = m.UserId,
                     email = m.User.Email,
                     userName = m.User.UserName,
+                    profilePictureUrl = m.User.ProfilePictureUrl,
                     role = m.Role.ToString()
                 })
                 .ToListAsync();

@@ -11,7 +11,7 @@ export function useBoardTopbar({
                                    handleSearch,
                                    clearSearch,
                                    navigate,
-                                   setShowInvite
+                                   setShowMembers
                                }) {
     const { setTitle, setActions } = useTopbar();
 
@@ -79,8 +79,8 @@ export function useBoardTopbar({
                         ))}
                     </select>
 
-                    <button className="btn-secondary" onClick={() => setShowInvite(true)}>
-                        👥 Invite
+                    <button className="btn-secondary" onClick={() => setShowMembers(true)} style={{ fontSize: '13px' }}>
+                        👥 Members
                     </button>
                 </div>
             )
@@ -95,7 +95,7 @@ export function useBoardTopbar({
         handleSearch,
         clearSearch,
         navigate,
-        setShowInvite,
+        setShowMembers,
         setTitle,
         setActions
     ]);

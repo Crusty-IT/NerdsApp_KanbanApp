@@ -11,5 +11,5 @@ public class Card
     public Column Column { get; set; } = null!;
     public string? AssignedToUserId { get; set; }
     public DateTime? DueDate { get; set; }
-    public string? Color { get; set; }
+    public int? Priority { get; set; }
 }
