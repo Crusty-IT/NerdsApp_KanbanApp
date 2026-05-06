@@ -51,7 +51,7 @@ export default function Dashboard() {
         if (!name.trim()) return;
         try {
             const response = await api.post('/api/projects', { name: name.trim(), description: description.trim(), color });
-            setProjects(prev => [response.data, ...prev]);
+            setProjects(prev => [{ ...response.data, isOwner: true }, ...prev]);
             closeForm();
         } catch {
             setError('Failed to create project');
@@ -82,16 +82,10 @@ export default function Dashboard() {
     const handleDeleteClick = async (project) => {
         const details = await api.get(`/api/projects/${project.id}`);
         const boardCount = details.data.boards?.length ?? 0;
-
         const message = boardCount > 0
             ? `"${project.name}" contains ${boardCount} board${boardCount > 1 ? 's' : ''} with all their cards. This action cannot be undone.`
             : `Are you sure you want to delete "${project.name}"? This action cannot be undone.`;
-
-        setConfirm({
-            title: 'Delete Project',
-            message,
-            onConfirm: () => handleDeleteConfirmed(project.id)
-        });
+        setConfirm({ title: 'Delete Project', message, onConfirm: () => handleDeleteConfirmed(project.id) });
     };
 
     const handleDeleteConfirmed = async (projectId) => {
@@ -187,10 +181,16 @@ export default function Dashboard() {
                             style={{ '--project-color': project.color || PROJECT_COLORS[0], position: 'relative' }}
                             onClick={() => navigate(`/projects/${project.id}`)}
                         >
-                            <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
-                                <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
-                                <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
-                            </div>
+                            {project.isOwner ? (
+                                <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
+                                    <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
+                                    <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
+                                </div>
+                            ) : (
+                                <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10 }}>
+                                    <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '10px', color: 'var(--text-secondary)' }}>Member</span>
+                                </div>
+                            )}
                             <h3 style={{ color: project.color || PROJECT_COLORS[0] }}>{project.name}</h3>
                             {project.description && <p>{project.description}</p>}
                             <div className="project-card-footer">
@@ -201,15 +201,7 @@ export default function Dashboard() {
                     ))}
                     <div
                         className="project-card"
-                        style={{
-                            '--project-color': 'var(--border)',
-                            border: '1px dashed var(--border)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            minHeight: '120px',
-                            cursor: 'pointer'
-                        }}
+                        style={{ '--project-color': 'var(--border)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '120px', cursor: 'pointer' }}
                         onClick={() => setShowForm(true)}
                     >
                         <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>+ New Project</span>

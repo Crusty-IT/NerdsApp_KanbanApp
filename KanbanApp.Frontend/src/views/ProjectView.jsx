@@ -14,12 +14,18 @@ export default function ProjectView() {
     const { projectId } = useParams();
     const navigate = useNavigate();
     const [project, setProject] = useState(null);
+    const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
+    const [showInvite, setShowInvite] = useState(false);
+    const [showMembers, setShowMembers] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editingBoard, setEditingBoard] = useState(null);
     const [boardName, setBoardName] = useState('');
     const [boardColor, setBoardColor] = useState(COLORS[0]);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteError, setInviteError] = useState('');
+    const [inviteSuccess, setInviteSuccess] = useState('');
     const [error, setError] = useState('');
     const [confirm, setConfirm] = useState(null);
     const { setTitle, setActions } = useTopbar();
@@ -29,13 +35,19 @@ export default function ProjectView() {
     }, []);
 
     useEffect(() => {
-        if (project) {
-            setTitle(project.name);
-            setActions({
-                left: <button className="btn-secondary" onClick={() => navigate('/dashboard')} style={{ fontSize: '14px' }}>← Back</button>,
-                right: null
-            });
-        }
+        if (!project) return;
+        setTitle(project.name);
+        setActions({
+            left: <button className="btn-secondary" onClick={() => navigate('/dashboard')} style={{ fontSize: '14px' }}>← Back</button>,
+            right: project.isOwner ? (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <button className="btn-secondary" onClick={() => { setShowMembers(true); fetchMembers(); }} style={{ fontSize: '13px' }}>👥 Members</button>
+                    <button className="btn-primary" onClick={() => setShowInvite(true)} style={{ fontSize: '13px' }}>+ Invite</button>
+                </div>
+            ) : (
+                <button className="btn-secondary" onClick={() => { setShowMembers(true); fetchMembers(); }} style={{ fontSize: '13px' }}>👥 Members</button>
+            )
+        });
     }, [project]);
 
     useEffect(() => {
@@ -54,6 +66,37 @@ export default function ProjectView() {
         return () => { ignore = true; };
     }, [projectId]);
 
+    const fetchMembers = async () => {
+        try {
+            const response = await api.get(`/api/projects/${projectId}/members`);
+            setMembers(response.data);
+        } catch {
+            console.error('Failed to fetch members');
+        }
+    };
+
+    const handleInvite = async (e) => {
+        e.preventDefault();
+        setInviteError('');
+        setInviteSuccess('');
+        try {
+            await api.post(`/api/projects/${projectId}/members`, { email: inviteEmail.trim() });
+            setInviteSuccess('User invited successfully!');
+            setInviteEmail('');
+        } catch (err) {
+            setInviteError(err.response?.data?.message || 'Failed to invite user');
+        }
+    };
+
+    const handleRemoveMember = async (memberId) => {
+        try {
+            await api.delete(`/api/projects/${projectId}/members/${memberId}`);
+            setMembers(prev => prev.filter(m => m.userId !== memberId));
+        } catch {
+            setInviteError('Failed to remove member');
+        }
+    };
+
     const handleCreateBoard = async (e) => {
         e.preventDefault();
         if (!boardName.trim()) return;
@@ -63,10 +106,7 @@ export default function ProjectView() {
                 projectId: parseInt(projectId),
                 color: boardColor
             });
-            setProject(prev => ({
-                ...prev,
-                boards: [...(prev.boards || []), response.data]
-            }));
+            setProject(prev => ({ ...prev, boards: [...(prev.boards || []), response.data] }));
             closeForm();
         } catch {
             setError('Failed to create board');
@@ -103,16 +143,10 @@ export default function ProjectView() {
     const handleDeleteClick = async (board) => {
         const details = await api.get(`/api/boards/${board.id}`);
         const cardCount = details.data.columns?.reduce((sum, col) => sum + (col.cards?.length ?? 0), 0) ?? 0;
-
         const message = cardCount > 0
             ? `"${board.name}" contains ${cardCount} card${cardCount > 1 ? 's' : ''}. This action cannot be undone.`
             : `Are you sure you want to delete "${board.name}"? This action cannot be undone.`;
-
-        setConfirm({
-            title: 'Delete Board',
-            message,
-            onConfirm: () => handleDeleteConfirmed(board.id)
-        });
+        setConfirm({ title: 'Delete Board', message, onConfirm: () => handleDeleteConfirmed(board.id) });
     };
 
     const handleDeleteConfirmed = async (boardId) => {
@@ -158,6 +192,60 @@ export default function ProjectView() {
                 />
             )}
 
+            {showInvite && (
+                <div className="modal-overlay" onClick={() => { setShowInvite(false); setInviteEmail(''); setInviteError(''); setInviteSuccess(''); }}>
+                    <div className="modal-box" onClick={e => e.stopPropagation()}>
+                        <h2>Invite to Project</h2>
+                        <form className="auth-form" onSubmit={handleInvite}>
+                            <div className="form-group">
+                                <label>Email address</label>
+                                <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="user@example.com" autoFocus required />
+                            </div>
+                            {inviteError && <p className="error-msg">{inviteError}</p>}
+                            {inviteSuccess && <p style={{ color: 'var(--accent)', fontSize: '13px' }}>{inviteSuccess}</p>}
+                            <div className="modal-actions">
+                                <button type="submit" className="btn-primary">Send Invite</button>
+                                <button type="button" className="btn-secondary" onClick={() => { setShowInvite(false); setInviteEmail(''); setInviteError(''); setInviteSuccess(''); }}>Close</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {showMembers && (
+                <div className="modal-overlay" onClick={() => setShowMembers(false)}>
+                    <div className="modal-box" onClick={e => e.stopPropagation()}>
+                        <h2>Project Members</h2>
+                        {members.length === 0 ? (
+                            <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>No members yet.</p>
+                        ) : (
+                            <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                                {members.map(m => (
+                                    <li key={m.userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            {m.profilePictureUrl
+                                                ? <img src={m.profilePictureUrl} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
+                                                : <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👤</div>
+                                            }
+                                            <div>
+                                                <div style={{ fontSize: '13px', fontWeight: 500 }}>{m.userName}</div>
+                                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{m.role}</div>
+                                            </div>
+                                        </div>
+                                        {project.isOwner && (
+                                            <button className="btn-danger" onClick={() => handleRemoveMember(m.userId)} style={{ padding: '2px 8px', fontSize: '12px' }}>Remove</button>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                        <div className="modal-actions">
+                            <button className="btn-secondary" onClick={() => setShowMembers(false)}>Close</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {showForm && (
                 <div className="modal-overlay" onClick={closeForm}>
                     <div className="modal-box" onClick={e => e.stopPropagation()}>
@@ -193,7 +281,7 @@ export default function ProjectView() {
                 <div className="empty-state">
                     <span className="empty-icon">📋</span>
                     <p>No boards yet. Create your first board.</p>
-                    <button className="btn-primary" onClick={() => setShowForm(true)}>+ New Board</button>
+                    {project.isOwner && <button className="btn-primary" onClick={() => setShowForm(true)}>+ New Board</button>}
                 </div>
             ) : (
                 <div className="projects-grid">
@@ -204,10 +292,12 @@ export default function ProjectView() {
                             style={{ '--project-color': board.color || project.color || COLORS[0], position: 'relative' }}
                             onClick={() => navigate(`/board/${board.id}`)}
                         >
-                            <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
-                                <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
-                                <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
-                            </div>
+                            {project.isOwner && (
+                                <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
+                                    <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
+                                    <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
+                                </div>
+                            )}
                             <h3 style={{ color: board.color || project.color || COLORS[0] }}>{board.name}</h3>
                             {board.description && <p>{board.description}</p>}
                             <div className="project-card-footer">
@@ -216,13 +306,15 @@ export default function ProjectView() {
                             </div>
                         </div>
                     ))}
-                    <div
-                        className="project-card"
-                        style={{ '--project-color': 'var(--border)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '120px', cursor: 'pointer' }}
-                        onClick={() => setShowForm(true)}
-                    >
-                        <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>+ New Board</span>
-                    </div>
+                    {project.isOwner && (
+                        <div
+                            className="project-card"
+                            style={{ '--project-color': 'var(--border)', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '120px', cursor: 'pointer' }}
+                            onClick={() => setShowForm(true)}
+                        >
+                            <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>+ New Board</span>
+                        </div>
+                    )}
                 </div>
             )}
         </div>

@@ -10,4 +10,5 @@ public class Project
     public string OwnerId { get; set; } = string.Empty;
     public ApplicationUser Owner { get; set; } = null!;
     public ICollection<Board> Boards { get; set; } = new List<Board>();
+    public ICollection<ProjectMember> Members { get; set; } = new List<ProjectMember>();
 }

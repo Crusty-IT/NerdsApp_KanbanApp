@@ -15,6 +15,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Column> Columns { get; set; }
     public DbSet<Card> Cards { get; set; }
     public DbSet<BoardMember> BoardMembers { get; set; }
+    public DbSet<ProjectMember> ProjectMembers { get; set; }
     public DbSet<Project> Projects { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<Notification> Notifications { get; set; }
@@ -35,6 +36,19 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(bm => bm.Board)
             .WithMany(b => b.BoardMembers)
             .HasForeignKey(bm => bm.BoardId);
+
+        modelBuilder.Entity<ProjectMember>()
+            .HasKey(pm => new { pm.UserId, pm.ProjectId });
+
+        modelBuilder.Entity<ProjectMember>()
+            .HasOne(pm => pm.User)
+            .WithMany(u => u.ProjectMembers)
+            .HasForeignKey(pm => pm.UserId);
+
+        modelBuilder.Entity<ProjectMember>()
+            .HasOne(pm => pm.Project)
+            .WithMany(p => p.Members)
+            .HasForeignKey(pm => pm.ProjectId);
 
         modelBuilder.Entity<Project>()
             .HasOne(p => p.Owner)
