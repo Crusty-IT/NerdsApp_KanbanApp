@@ -11,6 +11,7 @@ export function useBoardTopbar({
                                    handleSearch,
                                    clearSearch,
                                    navigate,
+                                   setShowInvite,
                                    setShowMembers
                                }) {
     const { setTitle, setActions } = useTopbar();
@@ -28,7 +29,7 @@ export function useBoardTopbar({
         setTitle(board.name);
         setActions({
             left: (
-                <button className="btn-secondary" onClick={() => navigate(-1)} style={{ fontSize: '14px' }}>
+                <button className="btn-secondary" onClick={() => navigate(-1)} style={{ fontSize: '14px', padding: '6px 12px' }}>
                     ← Back
                 </button>
             ),
@@ -52,7 +53,7 @@ export function useBoardTopbar({
                             }}
                         />
                         {searchQuery && (
-                            <button className="btn-secondary" onClick={clearSearch} style={{ padding: '6px 8px' }}>
+                            <button className="btn-secondary" onClick={clearSearch} style={{ padding: '6px 8px', fontSize: '13px' }}>
                                 ✕
                             </button>
                         )}
@@ -71,7 +72,7 @@ export function useBoardTopbar({
                             cursor: 'pointer'
                         }}
                     >
-                        <option value="">All members</option>
+                        <option value="">Members</option>
                         {boardMembers.map(m => (
                             <option key={m.userId} value={m.userId}>
                                 {m.userName || m.email}
@@ -79,9 +80,15 @@ export function useBoardTopbar({
                         ))}
                     </select>
 
-                    <button className="btn-secondary" onClick={() => setShowMembers(true)} style={{ fontSize: '13px' }}>
-                        👥 Members
+                    <button className="btn-secondary" onClick={() => setShowInvite(true)} style={{ fontSize: '13px', padding: '6px 12px' }}>
+                        👥 Invite
                     </button>
+
+                    {board.projectId && (
+                        <button className="btn-secondary" onClick={() => setShowMembers(true)} style={{ fontSize: '13px', padding: '6px 12px' }}>
+                            Members
+                        </button>
+                    )}
                 </div>
             )
         });
@@ -95,6 +102,7 @@ export function useBoardTopbar({
         handleSearch,
         clearSearch,
         navigate,
+        setShowInvite,
         setShowMembers,
         setTitle,
         setActions

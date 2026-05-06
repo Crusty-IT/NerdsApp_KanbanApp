@@ -4,6 +4,7 @@ import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import api from '../services/api';
 import Column from '../components/Column';
 import ColumnForm from '../components/ColumnForm';
+import InviteModal from '../components/InviteModal';
 import { useBoardData } from '../hooks/useBoardData';
 import { useColumns } from '../hooks/useColumns';
 import { useCards } from '../hooks/useCards';
@@ -14,6 +15,7 @@ import { useBoardTopbar } from '../hooks/useBoardTopbar';
 export default function BoardView() {
     const { boardId } = useParams();
     const navigate = useNavigate();
+    const [showInvite, setShowInvite] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
     const [projectMembers, setProjectMembers] = useState([]);
     const [error, setError] = useState(null);
@@ -24,6 +26,16 @@ export default function BoardView() {
     const { handleCreateCard, handleUpdateCard, handleDeleteCard, handleAssignCard } = useCards(boardId, board, setBoard, setError);
     const { searchQuery, setSearchQuery, searchResults, handleSearch, clearSearch } = useCardSearch(boardId, setError);
     const { handleDragEnd } = useDragDrop(boardId, board, setBoard, setError);
+
+    const handleInvite = async (email) => {
+        try {
+            await api.post(`/api/boards/${boardId}/members`, { email });
+            await refreshMembers();
+            return { success: true, message: 'User invited successfully!' };
+        } catch (err) {
+            return { success: false, message: err.response?.data || 'Failed to invite user' };
+        }
+    };
 
     const fetchProjectMembers = async () => {
         if (!board?.projectId) return;
@@ -55,6 +67,7 @@ export default function BoardView() {
         handleSearch,
         clearSearch,
         navigate,
+        setShowInvite,
         setShowMembers: () => {
             setShowMembers(true);
             fetchProjectMembers();
@@ -143,6 +156,8 @@ export default function BoardView() {
                     </div>
                 </div>
             )}
+
+            <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} onInvite={handleInvite} />
 
             {showMembers && board.projectId && (
                 <div className="modal-overlay" onClick={() => setShowMembers(false)}>
