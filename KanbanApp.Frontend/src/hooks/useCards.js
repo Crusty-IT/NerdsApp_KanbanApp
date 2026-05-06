@@ -22,15 +22,32 @@ export function useCards(boardId, board, setBoard, setError) {
     const handleUpdateCard = async (cardId, data) => {
         try {
             const card = board.columns.flatMap(c => c.cards).find(c => c.id === cardId);
-            await api.put(`/api/boards/${boardId}/cards/${cardId}`, { ...data, columnId: card.columnId });
+            if (!card) {
+                setError('Card not found');
+                setTimeout(() => setError(null), 3000);
+                return;
+            }
+
+            const payload = {
+                title: data.title,
+                description: data.description,
+                columnId: data.columnId ?? card.columnId,
+                assignedToUserId: data.assignedToUserId,
+                dueDate: data.dueDate,
+                priority: data.priority
+            };
+
+            await api.put(`/api/boards/${boardId}/cards/${cardId}`, payload);
+
             setBoard(prev => {
                 const updated = JSON.parse(JSON.stringify(prev));
                 const target = updated.columns.flatMap(c => c.cards).find(c => c.id === cardId);
-                Object.assign(target, data);
+                if (target) Object.assign(target, data);
                 return updated;
             });
-        } catch {
-            setError('Failed to update card');
+        } catch (err) {
+            console.error('Update card error:', err);
+            setError(err.response?.data?.message || 'Failed to update card');
             setTimeout(() => setError(null), 3000);
         }
     };
