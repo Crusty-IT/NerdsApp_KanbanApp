@@ -18,11 +18,11 @@ public static class CardEndpoints
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardMember");
             if (!authResult.Succeeded) return Results.Forbid();
 
-            var card = await cardService.CreateAsync(boardId, dto.ColumnId, dto.Title, dto.Description, dto.DueDate, dto.Color);
+            var card = await cardService.CreateAsync(boardId, dto.ColumnId, dto.Title, dto.Description, dto.DueDate, dto.Priority);
             return card is null
                 ? Results.BadRequest("Column not found.")
                 : TypedResults.Created($"/api/boards/{boardId}/cards/{card.Id}",
-                    new { card.Id, card.Title, card.Description, card.ColumnId, card.DueDate, card.Color });
+                    new { card.Id, card.Title, card.Description, card.ColumnId, card.DueDate, card.Priority });
         });
 
         cards.MapPut("/{cardId}", async (int boardId, int cardId, UpdateCardDto dto, ICardService cardService,
@@ -31,10 +31,10 @@ public static class CardEndpoints
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardMember");
             if (!authResult.Succeeded) return Results.Forbid();
 
-            var card = await cardService.UpdateAsync(boardId, cardId, dto.Title, dto.Description, dto.ColumnId, dto.AssignedToUserId, dto.DueDate, dto.Color);
+            var card = await cardService.UpdateAsync(boardId, cardId, dto.Title, dto.Description, dto.ColumnId, dto.AssignedToUserId, dto.DueDate, dto.Priority);
             return card is null
                 ? Results.NotFound()
-                : Results.Ok(new { card.Id, card.Title, card.Description, card.ColumnId, card.AssignedToUserId, card.DueDate, card.Color });
+                : Results.Ok(new { card.Id, card.Title, card.Description, card.ColumnId, card.AssignedToUserId, card.DueDate, card.Priority });
         });
 
         cards.MapDelete("/{cardId}", async (int boardId, int cardId, ICardService cardService,
@@ -74,7 +74,7 @@ public static class CardEndpoints
             var results = await cardService.SearchAsync(boardId, q);
             return Results.Ok(results.Select(c => new
             {
-                c.Id, c.Title, c.Description, c.ColumnId, c.AssignedToUserId, c.DueDate, c.Color
+                c.Id, c.Title, c.Description, c.ColumnId, c.AssignedToUserId, c.DueDate, c.Priority
             }));
         });
     }

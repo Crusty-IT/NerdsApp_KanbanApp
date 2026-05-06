@@ -1,10 +1,7 @@
 import { useState } from 'react';
 
-const COLORS = [
-    '#00d4ff', '#3b82f6', '#6366f1', '#8b5cf6',
-    '#10b981', '#14b8a6', '#f59e0b', '#ef4444',
-    '#ec4899', '#f97316', '#84cc16', '#06b6d4'
-];
+const PRIORITY_LABELS = { 1: 'Lowest', 2: 'Low', 3: 'Medium', 4: 'High', 5: 'Highest' };
+const PRIORITY_COLORS = { 1: '#6b7280', 2: '#3b82f6', 3: '#f59e0b', 4: '#ef4444', 5: '#dc2626' };
 
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
     <div className="modal-overlay" onClick={onCancel}>
@@ -29,20 +26,21 @@ function isOverdue(dateStr) {
     return new Date(dateStr) < new Date();
 }
 
-export default function Card({ card, isDragging, onUpdate, onDelete, boardMembers }) {
+export default function Card({ card, isDragging, onUpdate, onDelete, boardMembers, columnColor }) {
     const [showModal, setShowModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [title, setTitle] = useState(card.title);
     const [description, setDescription] = useState(card.description || '');
     const [assignedTo, setAssignedTo] = useState(card.assignedToUserId || '');
     const [dueDate, setDueDate] = useState(card.dueDate ? card.dueDate.split('T')[0] : '');
-    const [color, setColor] = useState(card.color || '');
+    const [priority, setPriority] = useState(card.priority || null);
 
     const assignedMember = boardMembers?.find(m => m.userId === card.assignedToUserId);
-    const assignedLabel = assignedMember?.email || assignedMember?.userName || null;
+    const assignedLabel = assignedMember?.userName || assignedMember?.email || null;
     const initials = assignedLabel ? assignedLabel.slice(0, 2).toUpperCase() : null;
     const overdue = isOverdue(card.dueDate);
-    const cardColor = card.color || null;
+    const borderColor = columnColor ? `${columnColor}33` : 'var(--border)';
+    const borderLeftColor = columnColor || 'var(--border)';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -51,7 +49,7 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
             description: description.trim(),
             assignedToUserId: assignedTo || null,
             dueDate: dueDate || null,
-            color: color || null
+            priority: priority || null
         });
         setShowModal(false);
     };
@@ -68,8 +66,8 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                 onClick={() => setShowModal(true)}
                 style={{
                     background: isDragging ? 'var(--bg-hover)' : 'var(--bg-card)',
-                    border: `1px solid ${isDragging ? 'var(--accent-cyan)' : cardColor ? cardColor + '66' : 'var(--border)'}`,
-                    borderLeft: cardColor ? `3px solid ${cardColor}` : '1px solid var(--border)',
+                    border: `1px solid ${isDragging ? 'var(--accent-cyan)' : borderColor}`,
+                    borderLeft: `3px solid ${borderLeftColor}`,
                     borderRadius: 'var(--radius)',
                     padding: '12px',
                     boxShadow: isDragging ? 'var(--glow-cyan)' : 'none',
@@ -77,15 +75,33 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                     cursor: 'pointer'
                 }}
             >
-                <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', marginBottom: card.description ? '6px' : '0' }}>
-                    {card.title}
-                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
+                    <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', flex: 1 }}>
+                        {card.title}
+                    </p>
+                    {card.priority && (
+                        <span style={{
+                            fontSize: '10px',
+                            fontFamily: 'var(--font-mono)',
+                            color: PRIORITY_COLORS[card.priority],
+                            background: `${PRIORITY_COLORS[card.priority]}22`,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            whiteSpace: 'nowrap',
+                            flexShrink: 0
+                        }}>
+                            P{card.priority}
+                        </span>
+                    )}
+                </div>
+
                 {card.description && (
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: '1.5' }}>
                         {card.description}
                     </p>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '4px' }}>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '6px' }}>
                     {card.dueDate && (
                         <span style={{
                             fontSize: '11px',
@@ -128,33 +144,29 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                                 <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{ resize: 'vertical' }} />
                             </div>
                             <div className="form-group">
-                                <label>Due Date</label>
-                                <input
-                                    type="date"
-                                    value={dueDate}
-                                    onChange={e => setDueDate(e.target.value)}
-                                    style={{ colorScheme: 'dark' }}
-                                />
-                            </div>
-                            <div className="form-group">
-                                <label>Card Color</label>
-                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
-                                    <button type="button" onClick={() => setColor('')} style={{
-                                        width: '22px', height: '22px', borderRadius: '50%',
-                                        background: 'var(--bg-hover)',
-                                        border: color === '' ? '3px solid #fff' : '2px solid var(--border)',
-                                        outline: color === '' ? '2px solid var(--accent-cyan)' : 'none',
-                                        padding: 0, cursor: 'pointer', fontSize: '10px', color: 'var(--text-secondary)'
-                                    }}>✕</button>
-                                    {COLORS.map(c => (
-                                        <button key={c} type="button" onClick={() => setColor(c)} style={{
-                                            width: '22px', height: '22px', borderRadius: '50%', background: c,
-                                            border: color === c ? '3px solid #fff' : '2px solid transparent',
-                                            outline: color === c ? `2px solid ${c}` : 'none',
-                                            padding: 0, cursor: 'pointer'
-                                        }} />
+                                <label>Priority</label>
+                                <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                                    <button type="button" onClick={() => setPriority(null)} style={{
+                                        flex: 1, padding: '8px', fontSize: '12px', borderRadius: 'var(--radius)',
+                                        border: `1px solid ${priority === null ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                                        background: priority === null ? 'var(--bg-hover)' : 'var(--bg-secondary)',
+                                        color: priority === null ? 'var(--accent-cyan)' : 'var(--text-secondary)',
+                                        cursor: 'pointer'
+                                    }}>None</button>
+                                    {[1, 2, 3, 4, 5].map(p => (
+                                        <button key={p} type="button" onClick={() => setPriority(p)} style={{
+                                            flex: 1, padding: '8px', fontSize: '12px', borderRadius: 'var(--radius)',
+                                            border: `1px solid ${priority === p ? PRIORITY_COLORS[p] : 'var(--border)'}`,
+                                            background: priority === p ? `${PRIORITY_COLORS[p]}22` : 'var(--bg-secondary)',
+                                            color: priority === p ? PRIORITY_COLORS[p] : 'var(--text-secondary)',
+                                            cursor: 'pointer', fontFamily: 'var(--font-mono)'
+                                        }}>P{p}</button>
                                     ))}
                                 </div>
+                            </div>
+                            <div className="form-group">
+                                <label>Due Date</label>
+                                <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} style={{ colorScheme: 'dark' }} />
                             </div>
                             <div className="form-group">
                                 <label>Assign to</label>
@@ -165,9 +177,7 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                                         background: assignedTo === '' ? 'var(--bg-hover)' : 'var(--bg-secondary)',
                                         cursor: 'pointer', fontSize: '13px',
                                         color: assignedTo === '' ? 'var(--accent-cyan)' : 'var(--text-secondary)'
-                                    }}>
-                                        Unassigned
-                                    </div>
+                                    }}>Unassigned</div>
                                     {boardMembers?.map(member => (
                                         <div key={member.userId} onClick={() => setAssignedTo(member.userId)} style={{
                                             padding: '8px 12px', borderRadius: 'var(--radius)',
@@ -180,11 +190,9 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                                                 background: 'var(--accent-indigo)', color: '#fff',
                                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                                 fontSize: '11px', fontWeight: '600', flexShrink: 0
-                                            }}>
-                                                {(member.email || member.userName || '??').slice(0, 2).toUpperCase()}
-                                            </div>
+                                            }}>{(member.userName || member.email || '??').slice(0, 2).toUpperCase()}</div>
                                             <span style={{ fontSize: '13px', color: assignedTo === member.userId ? 'var(--accent-cyan)' : 'var(--text-primary)' }}>
-                                                {member.email || member.userName}
+                                                {member.userName || member.email}
                                             </span>
                                         </div>
                                     ))}
