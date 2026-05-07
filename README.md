@@ -14,7 +14,7 @@
 A RESTful backend API for a team Kanban task management application.
 Built with ASP.NET Core 10 Minimal API, deployed to Render and Netlify.
 
-[👤 LinkedIn](https://www.linkedin.com/in/tomasz-skorupski-shellty)**
+[👤 LinkedIn](https://www.linkedin.com/in/tomasz-skorupski-shellty)
 
 </div>
 
