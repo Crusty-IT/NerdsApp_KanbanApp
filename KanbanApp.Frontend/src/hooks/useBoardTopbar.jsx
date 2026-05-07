@@ -29,7 +29,7 @@ export function useBoardTopbar({
         setTitle(board.name);
         setActions({
             left: (
-                <button className="btn-secondary" onClick={() => navigate(-1)} style={{ fontSize: '14px', padding: '6px 12px' }}>
+                <button className="btn-secondary" onClick={() => navigate(-1)} style={{ fontSize: '14px', padding: '8px 16px' }}>
                     ← Back
                 </button>
             ),
@@ -47,64 +47,27 @@ export function useBoardTopbar({
                                 border: '1px solid var(--border)',
                                 borderRadius: 'var(--radius)',
                                 color: 'var(--text-primary)',
-                                padding: '6px 10px',
+                                padding: '8px 12px',
                                 fontSize: '13px',
                                 width: '160px'
                             }}
                         />
                         {searchQuery && (
-                            <button className="btn-secondary" onClick={clearSearch} style={{ padding: '6px 8px', fontSize: '13px' }}>
+                            <button className="btn-secondary" onClick={clearSearch} style={{ padding: '8px 16px', fontSize: '13px' }}>
                                 ✕
                             </button>
                         )}
                     </div>
 
-                    <select
-                        value={filterUserId}
-                        onChange={e => setFilterUserId(e.target.value)}
-                        style={{
-                            background: 'var(--bg-secondary)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 'var(--radius)',
-                            color: 'var(--text-primary)',
-                            padding: '6px 10px',
-                            fontSize: '13px',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        <option value="">Members</option>
-                        {boardMembers.map(m => (
-                            <option key={m.userId} value={m.userId}>
-                                {m.userName || m.email}
-                            </option>
-                        ))}
-                    </select>
-
-                    <button className="btn-secondary" onClick={() => setShowInvite(true)} style={{ fontSize: '13px', padding: '6px 12px' }}>
-                        👥 Invite
+                    <button className="btn-secondary" onClick={() => setShowMembers(true)} style={{ fontSize: '13px', padding: '8px 16px' }}>
+                        Members
                     </button>
 
-                    {board.projectId && (
-                        <button className="btn-secondary" onClick={() => setShowMembers(true)} style={{ fontSize: '13px', padding: '6px 12px' }}>
-                            Members
-                        </button>
-                    )}
+                    <button className="btn-secondary" onClick={() => setShowInvite(true)} style={{ fontSize: '13px', padding: '8px 16px' }}>
+                        👥 Invite
+                    </button>
                 </div>
             )
         });
-    }, [
-        board,
-        boardMembers,
-        filterUserId,
-        searchQuery,
-        setFilterUserId,
-        setSearchQuery,
-        handleSearch,
-        clearSearch,
-        navigate,
-        setShowInvite,
-        setShowMembers,
-        setTitle,
-        setActions
-    ]);
+    }, [board?.id, board?.name, boardMembers.length, filterUserId, searchQuery]);
 }

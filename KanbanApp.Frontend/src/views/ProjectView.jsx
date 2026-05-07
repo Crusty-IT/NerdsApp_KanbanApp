@@ -38,14 +38,14 @@ export default function ProjectView() {
         if (!project) return;
         setTitle(project.name);
         setActions({
-            left: <button className="btn-secondary" onClick={() => navigate('/dashboard')} style={{ fontSize: '14px' }}>← Back</button>,
+            left: <button className="btn-secondary" onClick={() => navigate('/dashboard')} style={{ fontSize: '14px', padding: '8px 16px' }}>← Back</button>,
             right: project.isOwner ? (
                 <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn-secondary" onClick={() => { setShowMembers(true); fetchMembers(); }} style={{ fontSize: '13px' }}>👥 Members</button>
-                    <button className="btn-primary" onClick={() => setShowInvite(true)} style={{ fontSize: '13px' }}>+ Invite</button>
+                    <button className="btn-secondary" onClick={() => { setShowMembers(true); fetchMembers(); }} style={{ fontSize: '13px', padding: '8px 16px' }}>Members</button>
+                    <button className="btn-secondary" onClick={() => setShowInvite(true)} style={{ fontSize: '13px', padding: '8px 16px' }}>👥 Invite</button>
                 </div>
             ) : (
-                <button className="btn-secondary" onClick={() => { setShowMembers(true); fetchMembers(); }} style={{ fontSize: '13px' }}>👥 Members</button>
+                <button className="btn-secondary" onClick={() => { setShowMembers(true); fetchMembers(); }} style={{ fontSize: '13px', padding: '8px 16px' }}>Members</button>
             )
         });
     }, [project]);

@@ -25,6 +25,7 @@ public record CardDto(
     string? Description,
     int Position,
     DateTime CreatedAt,
+    int ColumnId,
     string? AssignedToUserId,
     DateTime? DueDate,
     int? Priority

@@ -17,13 +17,12 @@ export default function BoardView() {
     const navigate = useNavigate();
     const [showInvite, setShowInvite] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
-    const [projectMembers, setProjectMembers] = useState([]);
     const [error, setError] = useState(null);
     const [filterUserId, setFilterUserId] = useState('');
 
     const { board, setBoard, boardMembers, loading, refreshMembers } = useBoardData(boardId);
     const columns = useColumns(boardId, board, setBoard);
-    const { handleCreateCard, handleUpdateCard, handleDeleteCard, handleAssignCard } = useCards(boardId, board, setBoard, setError);
+    const { handleCreateCard, handleUpdateCard, handleDeleteCard } = useCards(boardId, board, setBoard, setError);
     const { searchQuery, setSearchQuery, searchResults, handleSearch, clearSearch } = useCardSearch(boardId, setError);
     const { handleDragEnd } = useDragDrop(boardId, board, setBoard, setError);
 
@@ -37,24 +36,9 @@ export default function BoardView() {
         }
     };
 
-    const fetchProjectMembers = async () => {
-        if (!board?.projectId) return;
-        try {
-            const response = await api.get(`/api/projects/${board.projectId}/members`);
-            setProjectMembers(response.data);
-        } catch (err) {
-            console.error('Failed to fetch project members', err);
-        }
-    };
-
-    const handleRemoveMember = async (memberId) => {
-        if (!board?.projectId) return;
-        try {
-            await api.delete(`/api/projects/${board.projectId}/members/${memberId}`);
-            setProjectMembers(prev => prev.filter(m => m.userId !== memberId));
-        } catch {
-            setError('Failed to remove member');
-        }
+    const handleMemberClick = (userId) => {
+        setFilterUserId(userId);
+        setShowMembers(false);
     };
 
     useBoardTopbar({
@@ -68,10 +52,7 @@ export default function BoardView() {
         clearSearch,
         navigate,
         setShowInvite,
-        setShowMembers: () => {
-            setShowMembers(true);
-            fetchProjectMembers();
-        }
+        setShowMembers
     });
 
     if (loading) return <div className="loading">loading board...</div>;
@@ -100,6 +81,13 @@ export default function BoardView() {
                 </div>
             )}
 
+            {filterUserId && (
+                <div style={{ padding: '8px 24px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <span>👤 Filtered by <strong style={{ color: 'var(--text-primary)' }}>{boardMembers.find(m => m.userId === filterUserId)?.userName || boardMembers.find(m => m.userId === filterUserId)?.email}</strong></span>
+                    <button onClick={() => setFilterUserId('')} style={{ fontSize: '12px', color: 'var(--accent-cyan)', background: 'none', border: 'none', cursor: 'pointer' }}>Clear filter</button>
+                </div>
+            )}
+
             <div style={{ flex: 1, overflowX: 'auto', padding: '24px', display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
                 <DragDropContext onDragEnd={handleDragEnd}>
                     <Droppable droppableId="board" type="COLUMN" direction="horizontal">
@@ -115,7 +103,6 @@ export default function BoardView() {
                                         onDelete={columns.handleDeleteColumn}
                                         onUpdateCard={handleUpdateCard}
                                         onDeleteCard={handleDeleteCard}
-                                        onAssignCard={handleAssignCard}
                                         boardMembers={boardMembers}
                                     />
                                 ))}
@@ -159,33 +146,65 @@ export default function BoardView() {
 
             <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} onInvite={handleInvite} />
 
-            {showMembers && board.projectId && (
+            {showMembers && (
                 <div className="modal-overlay" onClick={() => setShowMembers(false)}>
                     <div className="modal-box" onClick={e => e.stopPropagation()}>
-                        <h2>Project Members</h2>
-                        {projectMembers.length === 0 ? (
-                            <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>No members yet.</p>
-                        ) : (
-                            <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                {projectMembers.map(m => (
-                                    <li key={m.userId} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                            {m.profilePictureUrl
-                                                ? <img src={m.profilePictureUrl} alt="" style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover' }} />
-                                                : <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'var(--surface-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px' }}>👤</div>
-                                            }
-                                            <div>
-                                                <div style={{ fontSize: '13px', fontWeight: 500 }}>{m.userName}</div>
-                                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{m.role}</div>
-                                            </div>
-                                        </div>
-                                        {board.isOwner && (
-                                            <button className="btn-danger" onClick={() => handleRemoveMember(m.userId)} style={{ padding: '2px 8px', fontSize: '12px' }}>Remove</button>
-                                        )}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
+                        <h2>Board Members</h2>
+                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>Click on a member to filter cards</p>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <li
+                                onClick={() => { setFilterUserId(''); setShowMembers(false); }}
+                                style={{
+                                    padding: '8px 12px',
+                                    borderRadius: 'var(--radius)',
+                                    border: `1px solid ${filterUserId === '' ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                                    background: filterUserId === '' ? 'var(--bg-hover)' : 'var(--bg-secondary)',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    color: filterUserId === '' ? 'var(--accent-cyan)' : 'var(--text-primary)'
+                                }}
+                            >
+                                All members
+                            </li>
+                            {boardMembers.map(m => (
+                                <li
+                                    key={m.userId}
+                                    onClick={() => handleMemberClick(m.userId)}
+                                    style={{
+                                        padding: '8px 12px',
+                                        borderRadius: 'var(--radius)',
+                                        border: `1px solid ${filterUserId === m.userId ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                                        background: filterUserId === m.userId ? 'var(--bg-hover)' : 'var(--bg-secondary)',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px'
+                                    }}
+                                >
+                                    <div style={{
+                                        width: '28px',
+                                        height: '28px',
+                                        borderRadius: '50%',
+                                        background: 'var(--accent-indigo)',
+                                        color: '#fff',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        fontSize: '11px',
+                                        fontWeight: '600',
+                                        flexShrink: 0
+                                    }}>
+                                        {(m.userName || m.email || '??').slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <span style={{
+                                        fontSize: '13px',
+                                        color: filterUserId === m.userId ? 'var(--accent-cyan)' : 'var(--text-primary)'
+                                    }}>
+                                        {m.userName || m.email}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
                         <div className="modal-actions">
                             <button className="btn-secondary" onClick={() => setShowMembers(false)}>Close</button>
                         </div>

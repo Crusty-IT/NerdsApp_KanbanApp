@@ -10,10 +10,11 @@ export function useCards(boardId, board, setBoard, setError) {
             setBoard(prev => {
                 const updated = JSON.parse(JSON.stringify(prev));
                 const col = updated.columns.find(c => c.id === columnId);
-                col.cards.push(response.data);
+                if (col) col.cards.push(response.data);
                 return updated;
             });
-        } catch {
+        } catch (err) {
+            console.error('Create card error:', err);
             setError('Failed to create card');
             setTimeout(() => setError(null), 3000);
         }
@@ -23,6 +24,7 @@ export function useCards(boardId, board, setBoard, setError) {
         try {
             const card = board.columns.flatMap(c => c.cards).find(c => c.id === cardId);
             if (!card) {
+                console.error('Card not found in local state:', cardId);
                 setError('Card not found');
                 setTimeout(() => setError(null), 3000);
                 return;
@@ -30,23 +32,32 @@ export function useCards(boardId, board, setBoard, setError) {
 
             const payload = {
                 title: data.title,
-                description: data.description,
+                description: data.description || null,
                 columnId: data.columnId ?? card.columnId,
-                assignedToUserId: data.assignedToUserId,
-                dueDate: data.dueDate,
-                priority: data.priority
+                assignedToUserId: data.assignedToUserId || null,
+                dueDate: data.dueDate || null,
+                priority: data.priority || null
             };
 
-            await api.put(`/api/boards/${boardId}/cards/${cardId}`, payload);
+            console.log('Update card payload:', { cardId, boardId, payload });
+
+            const response = await api.put(`/api/boards/${boardId}/cards/${cardId}`, payload);
 
             setBoard(prev => {
                 const updated = JSON.parse(JSON.stringify(prev));
                 const target = updated.columns.flatMap(c => c.cards).find(c => c.id === cardId);
-                if (target) Object.assign(target, data);
+                if (target) {
+                    Object.assign(target, {
+                        ...data,
+                        id: cardId,
+                        columnId: payload.columnId
+                    });
+                }
                 return updated;
             });
         } catch (err) {
             console.error('Update card error:', err);
+            console.error('Error response:', err.response?.data);
             setError(err.response?.data?.message || 'Failed to update card');
             setTimeout(() => setError(null), 3000);
         }
@@ -62,7 +73,8 @@ export function useCards(boardId, board, setBoard, setError) {
                 });
                 return updated;
             });
-        } catch {
+        } catch (err) {
+            console.error('Delete card error:', err);
             setError('Failed to delete card');
             setTimeout(() => setError(null), 3000);
         }
@@ -78,7 +90,8 @@ export function useCards(boardId, board, setBoard, setError) {
                 if (card) card.assignedToUserId = userId;
                 return updated;
             });
-        } catch {
+        } catch (err) {
+            console.error('Assign card error:', err);
             setError('Failed to assign card');
             setTimeout(() => setError(null), 3000);
         }

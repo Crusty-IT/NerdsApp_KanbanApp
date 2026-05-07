@@ -46,7 +46,8 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
         e.preventDefault();
         await onUpdate(card.id, {
             title: title.trim(),
-            description: description.trim(),
+            description: description.trim() || null,
+            columnId: card.columnId,
             assignedToUserId: assignedTo || null,
             dueDate: dueDate || null,
             priority: priority || null

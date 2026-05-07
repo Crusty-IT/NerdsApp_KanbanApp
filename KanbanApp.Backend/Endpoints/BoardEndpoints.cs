@@ -47,7 +47,7 @@ public static class BoardEndpoints
                 var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == board.ProjectId);
                 isProjectOwner = project?.OwnerId == userId;
             }
-
+            
             var dto = new BoardDetailDto(
                 board.Id,
                 board.Name,
@@ -59,7 +59,7 @@ public static class BoardEndpoints
                 board.Columns.Select(c => new ColumnDto(
                     c.Id, c.Name, c.Position, c.Color,
                     c.Cards.Select(card => new CardDto(
-                        card.Id, card.Title, card.Description, card.Position, card.CreatedAt, card.AssignedToUserId, card.DueDate, card.Priority
+                        card.Id, card.Title, card.Description, card.Position, card.CreatedAt, card.ColumnId, card.AssignedToUserId, card.DueDate, card.Priority
                     )).ToList()
                 )).ToList()
             );
