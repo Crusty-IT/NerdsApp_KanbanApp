@@ -10,4 +10,6 @@ public interface IBoardService
     Task<Board?> UpdateAsync(int boardId, string userId, string name, string? description, string? color = null);
     Task<bool> DeleteAsync(int boardId, string userId);
     Task<bool> IsMemberAsync(int boardId, string userId);
+    Task<Board?> UpdateCoverAsync(int boardId, string userId, string? coverImageUrl, string? coverObjectPosition);
+    Task<(string? Url, string? Position)> GetCoverAsync(int boardId, string userId);
 }

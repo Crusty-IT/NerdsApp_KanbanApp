@@ -50,7 +50,7 @@ export function useDragDrop(boardId, board, setBoard, setError) {
         try {
             await api.put(`/api/boards/${boardId}/cards/${cardId}`, {
                 title: card.title, description: card.description, columnId: destColumnId,
-                dueDate: card.dueDate || null, color: card.color || null
+                assignedToUserId: card.assignedToUserId || null, dueDate: card.dueDate || null, priority: card.priority || null
             });
         } catch {
             setBoard(previousBoard);

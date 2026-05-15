@@ -2,6 +2,8 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace KanbanApp.Tests;
 
@@ -9,6 +11,19 @@ public class KanbanWebAppFactory : WebApplicationFactory<Program>
 {
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        builder.ConfigureAppConfiguration(config =>
+        {
+            config.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["RateLimiting:Disabled"] = "true",
+                ["Jwt:Key"] = "TestJwtKeyForKanbanAppTests1234567890",
+                ["Jwt:Issuer"] = "http://localhost",
+                ["Jwt:Audience"] = "http://localhost"
+            });
+        });
+
+        builder.ConfigureLogging(logging => logging.ClearProviders());
+
         builder.ConfigureServices(services =>
         {
             var toRemove = services
@@ -30,7 +45,5 @@ public class KanbanWebAppFactory : WebApplicationFactory<Program>
             if (rateLimiter != null)
                 services.Remove(rateLimiter);
         });
-
-        builder.UseSetting("RateLimiting:Disabled", "true");
     }
 }

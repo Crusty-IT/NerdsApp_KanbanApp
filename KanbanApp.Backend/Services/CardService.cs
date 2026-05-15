@@ -21,7 +21,7 @@ public class CardService : ICardService
             Title = title,
             Description = description,
             ColumnId = columnId,
-            DueDate = dueDate,
+            DueDate = ToUtc(dueDate),
             Priority = priority
         };
         _context.Cards.Add(card);
@@ -33,6 +33,7 @@ public class CardService : ICardService
     {
         var card = await _context.Cards
             .Include(c => c.Column)
+            .Include(c => c.Images)
             .FirstOrDefaultAsync(c => c.Id == cardId && c.Column.BoardId == boardId);
         if (card == null) return null;
 
@@ -44,11 +45,16 @@ public class CardService : ICardService
         card.Description = description;
         card.ColumnId = columnId;
         card.AssignedToUserId = assignedToUserId;
-        card.DueDate = dueDate;
+        card.DueDate = ToUtc(dueDate);
         card.Priority = priority;
         await _context.SaveChangesAsync();
         return card;
     }
+
+    private static DateTime? ToUtc(DateTime? value)
+        => value.HasValue && value.Value.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
+            : value?.ToUniversalTime();
 
     public async Task<bool> DeleteAsync(int boardId, int cardId)
     {
@@ -91,9 +97,54 @@ public class CardService : ICardService
         var q = query.ToLower();
         return await _context.Cards
             .Include(c => c.Column)
+            .Include(c => c.Images)
             .Where(c => c.Column.BoardId == boardId &&
                         (c.Title.ToLower().Contains(q) ||
                          (c.Description != null && c.Description.ToLower().Contains(q))))
             .ToListAsync();
+    }
+
+    public async Task<List<CardImage>?> GetImagesAsync(int boardId, int cardId)
+    {
+        var card = await _context.Cards
+            .Include(c => c.Column)
+            .Include(c => c.Images)
+            .FirstOrDefaultAsync(c => c.Id == cardId && c.Column.BoardId == boardId);
+        return card?.Images.ToList();
+    }
+
+    public async Task<CardImage?> AddImageAsync(int boardId, int cardId, string fileName, string url, string contentType, string userId, string? objectPosition)
+    {
+        var cardExists = await _context.Cards
+            .Include(c => c.Column)
+            .AnyAsync(c => c.Id == cardId && c.Column.BoardId == boardId);
+        if (!cardExists) return null;
+
+        var image = new CardImage
+        {
+            CardId = cardId,
+            FileName = fileName,
+            Url = url,
+            ContentType = contentType,
+            ObjectPosition = objectPosition,
+            UploadedByUserId = userId
+        };
+
+        _context.CardImages.Add(image);
+        await _context.SaveChangesAsync();
+        return image;
+    }
+
+    public async Task<CardImage?> DeleteImageAsync(int boardId, int cardId, int imageId)
+    {
+        var image = await _context.CardImages
+            .Include(i => i.Card)
+            .ThenInclude(c => c.Column)
+            .FirstOrDefaultAsync(i => i.Id == imageId && i.CardId == cardId && i.Card.Column.BoardId == boardId);
+        if (image == null) return null;
+
+        _context.CardImages.Remove(image);
+        await _context.SaveChangesAsync();
+        return image;
     }
 }

@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 using KanbanApp.Backend.DTOs;
 using KanbanApp.Backend.Models;
 using KanbanApp.Backend.Services;
@@ -16,7 +17,7 @@ public static class BoardEndpoints
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var boards = await service.GetAllByUserAsync(userId!);
-            var result = boards.Select(b => new { b.Id, b.Name, b.Description, b.Color, b.CreatedAt, b.ProjectId });
+            var result = boards.Select(b => new { b.Id, b.Name, b.Description, b.Color, b.CoverImageUrl, b.CoverObjectPosition, b.CreatedAt, b.ProjectId });
             return Results.Ok(result);
         }).RequireAuthorization();
 
@@ -24,7 +25,7 @@ public static class BoardEndpoints
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var board = await boardService.CreateAsync(dto.BoardName, null, userId!, dto.ProjectId, dto.Color);
-            return TypedResults.Created($"/api/boards/{board.Id}", new { board.Id, board.Name, board.Description, board.Color, board.CreatedAt, board.ProjectId });
+            return TypedResults.Created($"/api/boards/{board.Id}", new { board.Id, board.Name, board.Description, board.Color, board.CoverImageUrl, board.CoverObjectPosition, board.CreatedAt, board.ProjectId });
         }).RequireAuthorization();
 
         app.MapGet("/api/boards/{boardId}", async (
@@ -53,13 +54,16 @@ public static class BoardEndpoints
                 board.Name,
                 board.Description,
                 board.Color,
+                board.CoverImageUrl,
+                board.CoverObjectPosition,
                 board.CreatedAt,
                 board.ProjectId,
                 isBoardOwner || isProjectOwner,
                 board.Columns.Select(c => new ColumnDto(
                     c.Id, c.Name, c.Position, c.Color,
                     c.Cards.Select(card => new CardDto(
-                        card.Id, card.Title, card.Description, card.Position, card.CreatedAt, card.AssignedToUserId, card.DueDate, card.Priority
+                        card.Id, card.Title, card.Description, card.Position, card.ColumnId, card.CreatedAt, card.AssignedToUserId, card.DueDate, card.Priority,
+                        card.Images.Select(i => new CardImageDto(i.Id, i.FileName, i.Url, i.ContentType, i.ObjectPosition, i.UploadedAt)).ToList()
                     )).ToList()
                 )).ToList()
             );
@@ -100,19 +104,65 @@ public static class BoardEndpoints
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var board = await boardService.UpdateAsync(boardId, userId!, dto.Name, dto.Description, dto.Color);
             if (board is null) return Results.NotFound();
-            return Results.Ok(new { board.Id, board.Name, board.Color, board.CreatedAt });
+            return Results.Ok(new { board.Id, board.Name, board.Color, board.CoverImageUrl, board.CoverObjectPosition, board.CreatedAt });
         }).RequireAuthorization();
 
         app.MapDelete("/api/boards/{boardId}", async (
             int boardId, IBoardService boardService,
-            IAuthorizationService authorizationService, ClaimsPrincipal user) =>
+            IAuthorizationService authorizationService, ClaimsPrincipal user, IWebHostEnvironment env) =>
         {
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardOwner");
             if (!authResult.Succeeded) return Results.Forbid();
 
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            var (coverUrl, _) = await boardService.GetCoverAsync(boardId, userId!);
             var deleted = await boardService.DeleteAsync(boardId, userId!);
+            if (deleted && !string.IsNullOrEmpty(coverUrl))
+                CoverImageHelper.DeleteLocalImage(env, coverUrl);
             return deleted ? Results.NoContent() : Results.NotFound();
+        }).RequireAuthorization();
+
+        app.MapPost("/api/boards/{boardId}/cover", async (
+            int boardId, IFormFile file, [FromQuery] string? position,
+            IBoardService boardService,
+            IAuthorizationService authorizationService, ClaimsPrincipal user, IWebHostEnvironment env) =>
+        {
+            var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardOwner");
+            if (!authResult.Succeeded) return Results.Forbid();
+
+            var validationError = CoverImageHelper.ValidateImage(file);
+            if (validationError != null) return Results.BadRequest(validationError);
+
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            var (oldUrl, _) = await boardService.GetCoverAsync(boardId, userId!);
+            var newUrl = await CoverImageHelper.SaveImageAsync(env, "board-covers", file);
+            var objectPosition = string.IsNullOrWhiteSpace(position) ? "50% 50%" : position;
+
+            var updated = await boardService.UpdateCoverAsync(boardId, userId!, newUrl, objectPosition);
+            if (updated == null)
+            {
+                CoverImageHelper.DeleteLocalImage(env, newUrl);
+                return Results.NotFound();
+            }
+
+            if (!string.IsNullOrEmpty(oldUrl)) CoverImageHelper.DeleteLocalImage(env, oldUrl);
+            return Results.Ok(new { coverImageUrl = newUrl, coverObjectPosition = objectPosition });
+        }).DisableAntiforgery().RequireAuthorization();
+
+        app.MapDelete("/api/boards/{boardId}/cover", async (
+            int boardId, IBoardService boardService,
+            IAuthorizationService authorizationService, ClaimsPrincipal user, IWebHostEnvironment env) =>
+        {
+            var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardOwner");
+            if (!authResult.Succeeded) return Results.Forbid();
+
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            var (oldUrl, _) = await boardService.GetCoverAsync(boardId, userId!);
+            var updated = await boardService.UpdateCoverAsync(boardId, userId!, null, null);
+            if (updated == null) return Results.NotFound();
+
+            if (!string.IsNullOrEmpty(oldUrl)) CoverImageHelper.DeleteLocalImage(env, oldUrl);
+            return Results.NoContent();
         }).RequireAuthorization();
 
         app.MapPost("/api/boards/{boardId}/members", async (

@@ -19,6 +19,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Project> Projects { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<Notification> Notifications { get; set; }
+    public DbSet<CardImage> CardImages { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -70,5 +71,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(n => n.User)
             .WithMany()
             .HasForeignKey(n => n.UserId);
+
+        modelBuilder.Entity<CardImage>()
+            .HasOne(i => i.Card)
+            .WithMany(c => c.Images)
+            .HasForeignKey(i => i.CardId);
     }
 }

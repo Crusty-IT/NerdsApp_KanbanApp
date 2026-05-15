@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import api from '../services/api';
@@ -23,7 +23,7 @@ export default function BoardView() {
 
     const { board, setBoard, boardMembers, loading, refreshMembers } = useBoardData(boardId);
     const columns = useColumns(boardId, board, setBoard);
-    const { handleCreateCard, handleUpdateCard, handleDeleteCard, handleAssignCard } = useCards(boardId, board, setBoard, setError);
+    const { handleCreateCard, handleUpdateCard, handleDeleteCard, handleAssignCard, handleUploadCardImage, handleDeleteCardImage } = useCards(boardId, board, setBoard, setError);
     const { searchQuery, setSearchQuery, searchResults, handleSearch, clearSearch } = useCardSearch(boardId, setError);
     const { handleDragEnd } = useDragDrop(boardId, board, setBoard, setError);
 
@@ -37,7 +37,7 @@ export default function BoardView() {
         }
     };
 
-    const fetchProjectMembers = async () => {
+    const fetchProjectMembers = useCallback(async () => {
         if (!board?.projectId) return;
         try {
             const response = await api.get(`/api/projects/${board.projectId}/members`);
@@ -45,7 +45,12 @@ export default function BoardView() {
         } catch (err) {
             console.error('Failed to fetch project members', err);
         }
-    };
+    }, [board?.projectId]);
+
+    const openMembers = useCallback(() => {
+        setShowMembers(true);
+        fetchProjectMembers();
+    }, [fetchProjectMembers]);
 
     const handleRemoveMember = async (memberId) => {
         if (!board?.projectId) return;
@@ -68,10 +73,7 @@ export default function BoardView() {
         clearSearch,
         navigate,
         setShowInvite,
-        setShowMembers: () => {
-            setShowMembers(true);
-            fetchProjectMembers();
-        }
+        setShowMembers: openMembers
     });
 
     if (loading) return <div className="loading">loading board...</div>;
@@ -115,6 +117,8 @@ export default function BoardView() {
                                         onDelete={columns.handleDeleteColumn}
                                         onUpdateCard={handleUpdateCard}
                                         onDeleteCard={handleDeleteCard}
+                                        onUploadCardImage={handleUploadCardImage}
+                                        onDeleteCardImage={handleDeleteCardImage}
                                         onAssignCard={handleAssignCard}
                                         boardMembers={boardMembers}
                                     />
@@ -137,7 +141,7 @@ export default function BoardView() {
                         COLORS={columns.COLORS}
                     />
                 ) : (
-                    <button className="btn-secondary" onClick={() => columns.setShowColumnForm(true)} style={{ minWidth: '320px', flexShrink: 0, padding: '14px' }}>
+                    <button className="btn-secondary" onClick={() => columns.setShowColumnForm(true)} style={{ minWidth: '360px', flexShrink: 0, padding: '14px' }}>
                         + Add Column
                     </button>
                 )}

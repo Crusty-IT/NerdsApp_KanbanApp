@@ -9,4 +9,7 @@ public interface ICardService
     Task<bool> DeleteAsync(int boardId, int cardId);
     Task<Card?> AssignCardAsync(int cardId, string userId, string assignedByUserId);
     Task<List<Card>> SearchAsync(int boardId, string query);
+    Task<List<CardImage>?> GetImagesAsync(int boardId, int cardId);
+    Task<CardImage?> AddImageAsync(int boardId, int cardId, string fileName, string url, string contentType, string userId, string? objectPosition);
+    Task<CardImage?> DeleteImageAsync(int boardId, int cardId, int imageId);
 }

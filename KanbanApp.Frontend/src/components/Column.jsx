@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import Card from './Card';
 
-export default function Column({ column, index, onCreateCard, onEdit, onDelete, onUpdateCard, onDeleteCard, boardMembers }) {
+export default function Column({ column, index, onCreateCard, onEdit, onDelete, onUpdateCard, onDeleteCard, onUploadCardImage, onDeleteCardImage, boardMembers }) {
     const [showForm, setShowForm] = useState(false);
     const [title, setTitle] = useState('');
     const [showConfirmClear, setShowConfirmClear] = useState(false);
@@ -33,12 +33,14 @@ export default function Column({ column, index, onCreateCard, onEdit, onDelete, 
                         {...provided.draggableProps}
                         style={{
                             background: snapshot.isDragging ? 'var(--bg-hover)' : 'var(--bg-secondary)',
-                            border: `1px solid ${snapshot.isDragging ? 'var(--accent-cyan)' : 'var(--border)'}`,
                             borderTop: `3px solid ${color}`,
+                            borderRight: `1px solid ${snapshot.isDragging ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                            borderBottom: `1px solid ${snapshot.isDragging ? 'var(--accent-cyan)' : 'var(--border)'}`,
+                            borderLeft: `1px solid ${snapshot.isDragging ? 'var(--accent-cyan)' : 'var(--border)'}`,
                             borderRadius: 'var(--radius-lg)',
                             padding: '14px',
-                            minWidth: '320px',
-                            maxWidth: '320px',
+                            minWidth: '360px',
+                            maxWidth: '360px',
                             flexShrink: 0,
                             display: 'flex',
                             flexDirection: 'column',
@@ -96,6 +98,8 @@ export default function Column({ column, index, onCreateCard, onEdit, onDelete, 
                                                         isDragging={snapshot.isDragging}
                                                         onUpdate={onUpdateCard}
                                                         onDelete={onDeleteCard}
+                                                        onUploadImage={onUploadCardImage}
+                                                        onDeleteImage={onDeleteCardImage}
                                                         boardMembers={boardMembers}
                                                         columnColor={color}
                                                     />

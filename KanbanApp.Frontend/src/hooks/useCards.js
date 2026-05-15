@@ -37,17 +37,56 @@ export function useCards(boardId, board, setBoard, setError) {
                 priority: data.priority
             };
 
-            await api.put(`/api/boards/${boardId}/cards/${cardId}`, payload);
+            const response = await api.put(`/api/boards/${boardId}/cards/${cardId}`, payload);
 
             setBoard(prev => {
                 const updated = JSON.parse(JSON.stringify(prev));
                 const target = updated.columns.flatMap(c => c.cards).find(c => c.id === cardId);
-                if (target) Object.assign(target, data);
+                if (target) Object.assign(target, response.data);
                 return updated;
             });
         } catch (err) {
             console.error('Update card error:', err);
             setError(err.response?.data?.message || 'Failed to update card');
+            setTimeout(() => setError(null), 3000);
+        }
+    };
+
+    const handleUploadCardImage = async (cardId, file, position) => {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const qs = position ? `?position=${encodeURIComponent(position)}` : '';
+            const response = await api.post(`/api/boards/${boardId}/cards/${cardId}/images${qs}`, formData);
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                const card = updated.columns.flatMap(c => c.cards).find(c => c.id === cardId);
+                if (card) {
+                    card.images = [...(card.images || []), response.data];
+                }
+                return updated;
+            });
+            return response.data;
+        } catch (err) {
+            setError(err.response?.data || 'Failed to upload image');
+            setTimeout(() => setError(null), 3000);
+            return null;
+        }
+    };
+
+    const handleDeleteCardImage = async (cardId, imageId) => {
+        try {
+            await api.delete(`/api/boards/${boardId}/cards/${cardId}/images/${imageId}`);
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                const card = updated.columns.flatMap(c => c.cards).find(c => c.id === cardId);
+                if (card) {
+                    card.images = (card.images || []).filter(image => image.id !== imageId);
+                }
+                return updated;
+            });
+        } catch {
+            setError('Failed to delete image');
             setTimeout(() => setError(null), 3000);
         }
     };
@@ -84,5 +123,5 @@ export function useCards(boardId, board, setBoard, setError) {
         }
     };
 
-    return { handleCreateCard, handleUpdateCard, handleDeleteCard, handleAssignCard };
+    return { handleCreateCard, handleUpdateCard, handleDeleteCard, handleAssignCard, handleUploadCardImage, handleDeleteCardImage };
 }
