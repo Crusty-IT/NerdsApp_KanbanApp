@@ -62,6 +62,11 @@ export default function BoardView() {
         }
     };
 
+    const handleShowMembers = useCallback(() => {
+        setShowMembers(true);
+        fetchProjectMembers();
+    }, [board?.projectId]);
+
     useBoardTopbar({
         board,
         boardMembers,
