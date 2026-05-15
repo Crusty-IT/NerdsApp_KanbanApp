@@ -27,6 +27,7 @@ public class BoardService : IBoardService
         return await _context.Boards
             .Include(b => b.Columns)
             .ThenInclude(c => c.Cards)
+            .ThenInclude(c => c.Images)
             .FirstOrDefaultAsync(b => b.Id == boardId
                                       && b.BoardMembers.Any(bm => bm.UserId == userId));
     }
@@ -66,6 +67,7 @@ public class BoardService : IBoardService
         var board = await _context.Boards
             .Include(b => b.Columns)
             .ThenInclude(c => c.Cards)
+            .ThenInclude(c => c.Images)
             .Include(b => b.BoardMembers)
             .FirstOrDefaultAsync(b => b.Id == boardId
                                       && b.BoardMembers.Any(bm => bm.UserId == userId));
@@ -85,5 +87,26 @@ public class BoardService : IBoardService
     {
         return await _context.BoardMembers
             .AnyAsync(m => m.BoardId == boardId && m.UserId == userId);
+    }
+
+    public async Task<Board?> UpdateCoverAsync(int boardId, string userId, string? coverImageUrl, string? coverObjectPosition)
+    {
+        var board = await _context.Boards
+            .FirstOrDefaultAsync(b => b.Id == boardId && b.BoardMembers.Any(bm => bm.UserId == userId));
+        if (board == null) return null;
+
+        board.CoverImageUrl = coverImageUrl;
+        board.CoverObjectPosition = coverObjectPosition;
+        await _context.SaveChangesAsync();
+        return board;
+    }
+
+    public async Task<(string? Url, string? Position)> GetCoverAsync(int boardId, string userId)
+    {
+        var board = await _context.Boards
+            .Where(b => b.Id == boardId && b.BoardMembers.Any(bm => bm.UserId == userId))
+            .Select(b => new { b.CoverImageUrl, b.CoverObjectPosition })
+            .FirstOrDefaultAsync();
+        return board == null ? (null, null) : (board.CoverImageUrl, board.CoverObjectPosition);
     }
 }

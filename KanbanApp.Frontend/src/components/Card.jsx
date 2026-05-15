@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { BASE_URL } from '../services/api';
+import FocalPointPicker from './FocalPointPicker';
 
-const PRIORITY_LABELS = { 1: 'Lowest', 2: 'Low', 3: 'Medium', 4: 'High', 5: 'Highest' };
 const PRIORITY_COLORS = { 1: '#6b7280', 2: '#3b82f6', 3: '#f59e0b', 4: '#ef4444', 5: '#dc2626' };
 
 const ConfirmModal = ({ message, onConfirm, onCancel }) => (
@@ -26,15 +27,27 @@ function isOverdue(dateStr) {
     return new Date(dateStr) < new Date();
 }
 
-export default function Card({ card, isDragging, onUpdate, onDelete, boardMembers, columnColor }) {
+function getImageSrc(url) {
+    if (!url) return '';
+    return url.startsWith('http') ? url : `${BASE_URL}${url}`;
+}
+
+export default function Card({ card, isDragging, onUpdate, onDelete, onUploadImage, onDeleteImage, boardMembers, columnColor }) {
     const [showModal, setShowModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
+    const [lightboxImage, setLightboxImage] = useState(null);
     const [title, setTitle] = useState(card.title);
     const [description, setDescription] = useState(card.description || '');
     const [assignedTo, setAssignedTo] = useState(card.assignedToUserId || '');
     const [dueDate, setDueDate] = useState(card.dueDate ? card.dueDate.split('T')[0] : '');
     const [priority, setPriority] = useState(card.priority || null);
+    const [uploading, setUploading] = useState(false);
+    const [pendingImageFile, setPendingImageFile] = useState(null);
+    const [pendingImageSrc, setPendingImageSrc] = useState(null);
+    const fileRef = useRef(null);
 
+    const images = card.images || [];
+    const firstImage = images[0];
     const assignedMember = boardMembers?.find(m => m.userId === card.assignedToUserId);
     const assignedLabel = assignedMember?.userName || assignedMember?.email || null;
     const initials = assignedLabel ? assignedLabel.slice(0, 2).toUpperCase() : null;
@@ -60,14 +73,38 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
         setShowModal(false);
     };
 
+    const handleImageChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file || !onUploadImage) return;
+        setPendingImageFile(file);
+        setPendingImageSrc(URL.createObjectURL(file));
+        e.target.value = '';
+    };
+
+    const handlePickerConfirm = async (position) => {
+        setPendingImageSrc(null);
+        setUploading(true);
+        await onUploadImage(card.id, pendingImageFile, position);
+        setUploading(false);
+        setPendingImageFile(null);
+    };
+
+    const handlePickerCancel = () => {
+        if (pendingImageSrc) URL.revokeObjectURL(pendingImageSrc);
+        setPendingImageSrc(null);
+        setPendingImageFile(null);
+    };
+
     return (
         <>
             <div
                 onClick={() => setShowModal(true)}
                 style={{
                     background: isDragging ? 'var(--bg-hover)' : 'var(--bg-card)',
-                    border: `1px solid ${isDragging ? 'var(--accent-cyan)' : borderColor}`,
-                    borderLeft: `3px solid ${borderLeftColor}`,
+                    borderTop: `1px solid ${isDragging ? 'var(--accent-cyan)' : borderColor}`,
+                    borderRight: `1px solid ${isDragging ? 'var(--accent-cyan)' : borderColor}`,
+                    borderBottom: `1px solid ${isDragging ? 'var(--accent-cyan)' : borderColor}`,
+                    borderLeft: `3px solid ${isDragging ? 'var(--accent-cyan)' : borderLeftColor}`,
                     borderRadius: 'var(--radius)',
                     padding: '12px',
                     boxShadow: isDragging ? 'var(--glow-cyan)' : 'none',
@@ -75,64 +112,77 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                     cursor: 'pointer'
                 }}
             >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '6px' }}>
-                    <p style={{ fontSize: '14px', fontWeight: '500', color: 'var(--text-primary)', flex: 1 }}>
-                        {card.title}
-                    </p>
-                    {card.priority && (
-                        <span style={{
-                            fontSize: '10px',
-                            fontFamily: 'var(--font-mono)',
-                            color: PRIORITY_COLORS[card.priority],
-                            background: `${PRIORITY_COLORS[card.priority]}22`,
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0
-                        }}>
-                            P{card.priority}
-                        </span>
-                    )}
-                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '6px', marginBottom: card.description ? '6px' : '8px' }}>
+                            <p style={{ fontSize: '15px', fontWeight: '600', color: 'var(--text-primary)', lineHeight: 1.35, overflowWrap: 'anywhere', margin: 0 }}>
+                                {card.title}
+                            </p>
+                            {card.priority && (
+                                <span style={{
+                                    fontSize: '10px',
+                                    fontFamily: 'var(--font-mono)',
+                                    color: PRIORITY_COLORS[card.priority],
+                                    background: `${PRIORITY_COLORS[card.priority]}22`,
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    whiteSpace: 'nowrap',
+                                    flexShrink: 0
+                                }}>
+                                    P{card.priority}
+                                </span>
+                            )}
+                        </div>
 
-                {card.description && (
-                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: '1.5' }}>
-                        {card.description}
-                    </p>
-                )}
+                        {card.description && (
+                            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: '1.45', overflowWrap: 'anywhere' }}>
+                                {card.description}
+                            </p>
+                        )}
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap', gap: '6px' }}>
-                    {card.dueDate && (
-                        <span style={{
-                            fontSize: '11px',
-                            fontFamily: 'var(--font-mono)',
-                            color: overdue ? 'var(--color-red)' : 'var(--color-green)',
-                            background: overdue ? '#ef444422' : '#10b98122',
-                            padding: '2px 6px',
-                            borderRadius: '4px'
-                        }}>
-                            {overdue ? '⚠ ' : '📅 '}{formatDate(card.dueDate)}
-                        </span>
-                    )}
-                    {assignedLabel && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: 'auto' }}>
-                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{assignedLabel}</span>
-                            <div style={{
-                                width: '24px', height: '24px', borderRadius: '50%',
-                                background: 'var(--accent-indigo)', color: '#fff',
-                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                fontSize: '10px', fontWeight: '600', fontFamily: 'var(--font-mono)'
-                            }}>
-                                {initials}
-                            </div>
+                        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                            {card.dueDate && (
+                                <span style={{
+                                    fontSize: '11px',
+                                    fontFamily: 'var(--font-mono)',
+                                    color: overdue ? 'var(--color-red)' : 'var(--color-green)',
+                                    background: overdue ? '#ef444422' : '#10b98122',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px'
+                                }}>
+                                    {overdue ? 'Overdue ' : 'Due '}{formatDate(card.dueDate)}
+                                </span>
+                            )}
+                            {assignedLabel && (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}>
+                                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{assignedLabel}</span>
+                                    <div style={{
+                                        width: '22px', height: '22px', borderRadius: '50%',
+                                        background: 'var(--accent-indigo)', color: '#fff',
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: '9px', fontWeight: '600', fontFamily: 'var(--font-mono)', flexShrink: 0
+                                    }}>
+                                        {initials}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {firstImage && (
+                        <div
+                            onClick={e => { e.stopPropagation(); setLightboxImage(firstImage); }}
+                            style={{ width: '64px', height: '64px', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border)', flexShrink: 0, cursor: 'zoom-in', background: 'var(--bg-secondary)' }}
+                        >
+                            <img src={getImageSrc(firstImage.url)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: firstImage.objectPosition || '50% 50%', display: 'block' }} />
                         </div>
                     )}
                 </div>
             </div>
 
             {showModal && (
-                <div className="modal-overlay" onClick={() => setShowModal(false)}>
-                    <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '500px' }}>
+                <div className="modal-overlay" onClick={() => { setShowModal(false); setLightboxImage(null); }}>
+                    <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '760px', maxHeight: '90vh', overflowY: 'auto' }}>
                         <h2>Edit Card</h2>
                         <form className="auth-form" onSubmit={handleSubmit}>
                             <div className="form-group">
@@ -141,7 +191,30 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                             </div>
                             <div className="form-group">
                                 <label>Description</label>
-                                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={3} style={{ resize: 'vertical' }} />
+                                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} style={{ resize: 'vertical' }} />
+                            </div>
+                            <div className="form-group">
+                                <label>Image</label>
+                                {firstImage ? (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                                        <div onClick={() => setLightboxImage(firstImage)} style={{ aspectRatio: '16 / 9', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-secondary)', cursor: 'zoom-in' }}>
+                                            <img src={getImageSrc(firstImage.url)} alt={firstImage.fileName} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: firstImage.objectPosition || '50% 50%', display: 'block' }} />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                            <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()} disabled={uploading} style={{ flex: 1 }}>
+                                                {uploading ? 'Uploading...' : 'Replace'}
+                                            </button>
+                                            <button type="button" className="btn-danger" onClick={() => onDeleteImage?.(card.id, firstImage.id)} disabled={uploading}>
+                                                Remove
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button type="button" className="btn-secondary" onClick={() => fileRef.current?.click()} disabled={uploading} style={{ width: '100%', padding: '20px', borderStyle: 'dashed', marginTop: '4px' }}>
+                                        {uploading ? 'Uploading...' : '+ Add Image'}
+                                    </button>
+                                )}
+                                <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleImageChange} />
                             </div>
                             <div className="form-group">
                                 <label>Priority</label>
@@ -201,7 +274,7 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                             <div className="modal-actions">
                                 <button type="submit" className="btn-primary">Update</button>
                                 <button type="button" className="btn-danger" onClick={() => setShowConfirm(true)}>Delete</button>
-                                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+                                <button type="button" className="btn-secondary" onClick={() => { setShowModal(false); setLightboxImage(null); }}>Cancel</button>
                             </div>
                         </form>
                     </div>
@@ -214,6 +287,31 @@ export default function Card({ card, isDragging, onUpdate, onDelete, boardMember
                     onConfirm={handleDelete}
                     onCancel={() => setShowConfirm(false)}
                 />
+            )}
+
+            {pendingImageSrc && (
+                <FocalPointPicker
+                    src={pendingImageSrc}
+                    aspectRatio="4 / 3"
+                    onConfirm={handlePickerConfirm}
+                    onCancel={handlePickerCancel}
+                />
+            )}
+
+            {lightboxImage && (
+                <div className="modal-overlay" onClick={() => setLightboxImage(null)} style={{ zIndex: 1000 }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+                        <img
+                            src={getImageSrc(lightboxImage.url)}
+                            alt={lightboxImage.fileName}
+                            style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', display: 'block', borderRadius: 'var(--radius)' }}
+                        />
+                        <button
+                            onClick={() => setLightboxImage(null)}
+                            style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff', borderRadius: '50%', width: '32px', height: '32px', cursor: 'pointer', fontSize: '18px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >×</button>
+                    </div>
+                </div>
             )}
         </>
     );

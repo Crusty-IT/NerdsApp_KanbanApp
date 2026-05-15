@@ -5,6 +5,8 @@ public record BoardDetailDto(
     string Name,
     string? Description,
     string Color,
+    string? CoverImageUrl,
+    string? CoverObjectPosition,
     DateTime CreatedAt,
     int? ProjectId,
     bool IsOwner,
@@ -24,8 +26,19 @@ public record CardDto(
     string Title,
     string? Description,
     int Position,
+    int ColumnId,
     DateTime CreatedAt,
     string? AssignedToUserId,
     DateTime? DueDate,
-    int? Priority
+    int? Priority,
+    List<CardImageDto> Images
+);
+
+public record CardImageDto(
+    int Id,
+    string FileName,
+    string Url,
+    string ContentType,
+    string? ObjectPosition,
+    DateTime UploadedAt
 );

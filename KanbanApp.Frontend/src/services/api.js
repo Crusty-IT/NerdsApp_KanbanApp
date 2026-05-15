@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BASE_URL = import.meta.env.PROD
+export const BASE_URL = import.meta.env.PROD
     ? 'https://shellty-kanban.onrender.com'
     : 'http://localhost:5067';
 

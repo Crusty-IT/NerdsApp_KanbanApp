@@ -121,6 +121,43 @@ public class CardTests : IClassFixture<KanbanWebAppFactory>
     }
 
     [Fact]
+    public async Task UploadCardImage_AsMember_ReturnsCreatedAndBoardDetailsContainImage()
+    {
+        var (client, boardId, colId) = await CreateClientWithBoardAndColumn("card_image11@test.com");
+        var cardId = await CreateCard(client, boardId, colId, "Bug with screenshot");
+        using var content = new MultipartFormDataContent();
+        var image = new ByteArrayContent([1, 2, 3, 4]);
+        image.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
+        content.Add(image, "file", "screenshot.png");
+
+        var response = await client.PostAsync($"/api/boards/{boardId}/cards/{cardId}/images", content);
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var uploaded = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("image/png", uploaded.GetProperty("contentType").GetString());
+
+        var boardResponse = await client.GetAsync($"/api/boards/{boardId}");
+        var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var images = board.GetProperty("columns")[0].GetProperty("cards")[0].GetProperty("images");
+        Assert.Single(images.EnumerateArray());
+    }
+
+    [Fact]
+    public async Task UploadCardImage_WithInvalidFile_ReturnsBadRequest()
+    {
+        var (client, boardId, colId) = await CreateClientWithBoardAndColumn("card_image12@test.com");
+        var cardId = await CreateCard(client, boardId, colId, "Invalid image");
+        using var content = new MultipartFormDataContent();
+        var file = new ByteArrayContent([1, 2, 3]);
+        file.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("text/plain");
+        content.Add(file, "file", "notes.txt");
+
+        var response = await client.PostAsync($"/api/boards/{boardId}/cards/{cardId}/images", content);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task AssignCard_ToValidMember_ReturnsOk()
     {
         var (client, boardId, colId) = await CreateClientWithBoardAndColumn("card_assign9@test.com");

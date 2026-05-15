@@ -12,4 +12,5 @@ public class Card
     public string? AssignedToUserId { get; set; }
     public DateTime? DueDate { get; set; }
     public int? Priority { get; set; }
+    public ICollection<CardImage> Images { get; set; } = new List<CardImage>();
 }

@@ -1,14 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import api from '../services/api';
+import api, { BASE_URL } from '../services/api';
 import { useTopbar } from '../context/TopbarContext';
 import ConfirmDialog from '../components/ConfirmDialog';
+import FocalPointPicker from '../components/FocalPointPicker';
 
 const COLORS = [
     '#00d4ff', '#3b82f6', '#6366f1', '#8b5cf6',
     '#10b981', '#14b8a6', '#f59e0b', '#ef4444',
     '#ec4899', '#f97316', '#84cc16', '#06b6d4'
 ];
+
+function getImageSrc(url) {
+    if (!url) return '';
+    return url.startsWith('http') ? url : `${BASE_URL}${url}`;
+}
 
 export default function ProjectView() {
     const { projectId } = useParams();
@@ -23,11 +29,17 @@ export default function ProjectView() {
     const [editingBoard, setEditingBoard] = useState(null);
     const [boardName, setBoardName] = useState('');
     const [boardColor, setBoardColor] = useState(COLORS[0]);
+    const [boardCoverImageUrl, setBoardCoverImageUrl] = useState(null);
+    const [boardCoverObjectPosition, setBoardCoverObjectPosition] = useState('50% 50%');
+    const [uploadingCover, setUploadingCover] = useState(false);
+    const [pendingCoverFile, setPendingCoverFile] = useState(null);
+    const [pendingCoverSrc, setPendingCoverSrc] = useState(null);
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteError, setInviteError] = useState('');
     const [inviteSuccess, setInviteSuccess] = useState('');
     const [error, setError] = useState('');
     const [confirm, setConfirm] = useState(null);
+    const fileInputRef = useRef(null);
     const { setTitle, setActions } = useTopbar();
 
     useEffect(() => {
@@ -117,6 +129,8 @@ export default function ProjectView() {
         setEditingBoard(board);
         setBoardName(board.name);
         setBoardColor(board.color || COLORS[0]);
+        setBoardCoverImageUrl(board.coverImageUrl || null);
+        setBoardCoverObjectPosition(board.coverObjectPosition || '50% 50%');
         setIsEditing(true);
         setShowForm(true);
     };
@@ -132,11 +146,72 @@ export default function ProjectView() {
             });
             setProject(prev => ({
                 ...prev,
-                boards: prev.boards.map(b => b.id === editingBoard.id ? { ...b, ...response.data } : b)
+                boards: prev.boards.map(b => b.id === editingBoard.id
+                    ? { ...b, ...response.data, coverImageUrl: boardCoverImageUrl, coverObjectPosition: boardCoverObjectPosition }
+                    : b)
             }));
             closeForm();
         } catch {
             setError('Failed to update board');
+        }
+    };
+
+    const handleFileChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setPendingCoverFile(file);
+        setPendingCoverSrc(URL.createObjectURL(file));
+        e.target.value = '';
+    };
+
+    const handlePickerConfirm = async (position) => {
+        if (!pendingCoverFile || !editingBoard) return;
+        setPendingCoverSrc(null);
+
+        const formData = new FormData();
+        formData.append('file', pendingCoverFile);
+        setUploadingCover(true);
+        try {
+            const response = await api.post(
+                `/api/boards/${editingBoard.id}/cover?position=${encodeURIComponent(position)}`,
+                formData
+            );
+            const { coverImageUrl: newUrl, coverObjectPosition: newPos } = response.data;
+            setBoardCoverImageUrl(newUrl);
+            setBoardCoverObjectPosition(newPos);
+            setProject(prev => ({
+                ...prev,
+                boards: prev.boards.map(b => b.id === editingBoard.id ? { ...b, coverImageUrl: newUrl, coverObjectPosition: newPos } : b)
+            }));
+        } catch (err) {
+            setError(err.response?.data || 'Failed to upload cover');
+        } finally {
+            setUploadingCover(false);
+            setPendingCoverFile(null);
+        }
+    };
+
+    const handlePickerCancel = () => {
+        if (pendingCoverSrc) URL.revokeObjectURL(pendingCoverSrc);
+        setPendingCoverSrc(null);
+        setPendingCoverFile(null);
+    };
+
+    const handleCoverRemove = async () => {
+        if (!editingBoard) return;
+        setUploadingCover(true);
+        try {
+            await api.delete(`/api/boards/${editingBoard.id}/cover`);
+            setBoardCoverImageUrl(null);
+            setBoardCoverObjectPosition('50% 50%');
+            setProject(prev => ({
+                ...prev,
+                boards: prev.boards.map(b => b.id === editingBoard.id ? { ...b, coverImageUrl: null, coverObjectPosition: null } : b)
+            }));
+        } catch {
+            setError('Failed to remove cover');
+        } finally {
+            setUploadingCover(false);
         }
     };
 
@@ -166,6 +241,11 @@ export default function ProjectView() {
         setEditingBoard(null);
         setBoardName('');
         setBoardColor(COLORS[0]);
+        setBoardCoverImageUrl(null);
+        setBoardCoverObjectPosition('50% 50%');
+        setPendingCoverFile(null);
+        if (pendingCoverSrc) URL.revokeObjectURL(pendingCoverSrc);
+        setPendingCoverSrc(null);
         setError('');
     };
 
@@ -184,12 +264,7 @@ export default function ProjectView() {
             {error && <p className="error-msg" style={{ marginBottom: '12px' }}>{error}</p>}
 
             {confirm && (
-                <ConfirmDialog
-                    title={confirm.title}
-                    message={confirm.message}
-                    onConfirm={confirm.onConfirm}
-                    onCancel={() => setConfirm(null)}
-                />
+                <ConfirmDialog title={confirm.title} message={confirm.message} onConfirm={confirm.onConfirm} onCancel={() => setConfirm(null)} />
             )}
 
             {showInvite && (
@@ -248,7 +323,7 @@ export default function ProjectView() {
 
             {showForm && (
                 <div className="modal-overlay" onClick={closeForm}>
-                    <div className="modal-box" onClick={e => e.stopPropagation()}>
+                    <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxHeight: '90vh', overflowY: 'auto' }}>
                         <h2>{isEditing ? 'Edit Board' : 'New Board'}</h2>
                         {error && <p className="error-msg" style={{ marginBottom: '12px' }}>{error}</p>}
                         <form className="auth-form" onSubmit={isEditing ? handleUpdate : handleCreateBoard}>
@@ -256,6 +331,29 @@ export default function ProjectView() {
                                 <label>Board Name</label>
                                 <input type="text" value={boardName} onChange={e => setBoardName(e.target.value)} placeholder="e.g. Sprint 1" autoFocus required />
                             </div>
+                            {isEditing && (
+                                <div className="form-group">
+                                    <label>Cover Image</label>
+                                    {boardCoverImageUrl ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                                            <div style={{ aspectRatio: '16 / 9', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
+                                                <img src={getImageSrc(boardCoverImageUrl)} alt="Cover" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: boardCoverObjectPosition, display: 'block' }} />
+                                            </div>
+                                            <div style={{ display: 'flex', gap: '8px' }}>
+                                                <button type="button" className="btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={uploadingCover}>
+                                                    {uploadingCover ? 'Uploading...' : 'Replace'}
+                                                </button>
+                                                <button type="button" className="btn-danger" onClick={handleCoverRemove} disabled={uploadingCover}>Remove</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <button type="button" className="btn-secondary" onClick={() => fileInputRef.current?.click()} disabled={uploadingCover} style={{ width: '100%', padding: '20px', borderStyle: 'dashed' }}>
+                                            {uploadingCover ? 'Uploading...' : '+ Add Cover Image'}
+                                        </button>
+                                    )}
+                                    <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleFileChange} />
+                                </div>
+                            )}
                             <div className="form-group">
                                 <label>Color</label>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
@@ -277,6 +375,10 @@ export default function ProjectView() {
                 </div>
             )}
 
+            {pendingCoverSrc && (
+                <FocalPointPicker src={pendingCoverSrc} aspectRatio="16 / 9" onConfirm={handlePickerConfirm} onCancel={handlePickerCancel} />
+            )}
+
             {(!project.boards || project.boards.length === 0) ? (
                 <div className="empty-state">
                     <span className="empty-icon">📋</span>
@@ -289,20 +391,29 @@ export default function ProjectView() {
                         <div
                             key={board.id}
                             className="project-card"
-                            style={{ '--project-color': board.color || project.color || COLORS[0], position: 'relative' }}
+                            style={{ '--project-color': board.color || project.color || COLORS[0], position: 'relative', overflow: 'hidden', padding: 0 }}
                             onClick={() => navigate(`/board/${board.id}`)}
                         >
-                            {project.isOwner && (
-                                <div style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', zIndex: 10 }}>
-                                    <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
-                                    <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
+                            {board.coverImageUrl && (
+                                <div style={{ aspectRatio: '16 / 9', width: '100%', background: 'var(--bg-secondary)' }}>
+                                    <img src={getImageSrc(board.coverImageUrl)} alt={board.name} style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: board.coverObjectPosition || '50% 50%', display: 'block' }} />
                                 </div>
                             )}
-                            <h3 style={{ color: board.color || project.color || COLORS[0] }}>{board.name}</h3>
-                            {board.description && <p>{board.description}</p>}
-                            <div className="project-card-footer">
-                                <span className="project-card-meta">{formatDate(board.createdAt)}</span>
-                                <span className="project-color-dot" style={{ background: board.color || project.color || COLORS[0] }} />
+                            <div style={{ padding: '14px 16px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                                    <h3 style={{ color: board.color || project.color || COLORS[0], margin: 0, flex: 1 }}>{board.name}</h3>
+                                    {project.isOwner && (
+                                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                            <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
+                                            <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
+                                        </div>
+                                    )}
+                                </div>
+                                {board.description && <p style={{ marginTop: '6px' }}>{board.description}</p>}
+                                <div className="project-card-footer">
+                                    <span className="project-card-meta">{formatDate(board.createdAt)}</span>
+                                    <span className="project-color-dot" style={{ background: board.color || project.color || COLORS[0] }} />
+                                </div>
                             </div>
                         </div>
                     ))}

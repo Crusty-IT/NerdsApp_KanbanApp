@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 using KanbanApp.Backend.Data;
 using KanbanApp.Backend.DTOs;
 using KanbanApp.Backend.Models;
@@ -18,7 +19,7 @@ public static class ProjectEndpoints
                 .Where(p => p.OwnerId == userId || p.Members.Any(m => m.UserId == userId))
                 .Select(p => new
                 {
-                    p.Id, p.Name, p.Description, p.Color, p.CreatedAt,
+                    p.Id, p.Name, p.Description, p.Color, p.CoverImageUrl, p.CoverObjectPosition, p.CreatedAt,
                     IsOwner = p.OwnerId == userId
                 })
                 .ToListAsync();
@@ -37,7 +38,7 @@ public static class ProjectEndpoints
             };
             db.Projects.Add(project);
             await db.SaveChangesAsync();
-            return Results.Created($"/api/projects/{project.Id}", new { project.Id, project.Name, project.Color });
+            return Results.Created($"/api/projects/{project.Id}", new { project.Id, project.Name, project.Color, project.CoverImageUrl, project.CoverObjectPosition });
         }).RequireAuthorization();
 
         app.MapGet("/api/projects/{projectId}", async (int projectId, ApplicationDbContext db, ClaimsPrincipal user) =>
@@ -51,9 +52,9 @@ public static class ProjectEndpoints
             if (project == null) return Results.NotFound();
             return Results.Ok(new
             {
-                project.Id, project.Name, project.Description, project.Color, project.CreatedAt,
+                project.Id, project.Name, project.Description, project.Color, project.CoverImageUrl, project.CoverObjectPosition, project.CreatedAt,
                 IsOwner = project.OwnerId == userId,
-                Boards = project.Boards.Select(b => new { b.Id, b.Name, b.Description, b.Color, b.CreatedAt })
+                Boards = project.Boards.Select(b => new { b.Id, b.Name, b.Description, b.Color, b.CoverImageUrl, b.CoverObjectPosition, b.CreatedAt })
             });
         }).RequireAuthorization();
 
@@ -66,10 +67,10 @@ public static class ProjectEndpoints
             project.Description = dto.Description;
             project.Color = dto.Color ?? project.Color;
             await db.SaveChangesAsync();
-            return Results.Ok(new { project.Id, project.Name, project.Color });
+            return Results.Ok(new { project.Id, project.Name, project.Color, project.CoverImageUrl, project.CoverObjectPosition });
         }).RequireAuthorization();
 
-        app.MapDelete("/api/projects/{projectId}", async (int projectId, ApplicationDbContext db, ClaimsPrincipal user) =>
+        app.MapDelete("/api/projects/{projectId}", async (int projectId, ApplicationDbContext db, ClaimsPrincipal user, IWebHostEnvironment env) =>
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var project = await db.Projects
@@ -78,6 +79,10 @@ public static class ProjectEndpoints
                 .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId);
             if (project == null) return Results.NotFound();
+
+            var projectCover = project.CoverImageUrl;
+            var boardCovers = project.Boards.Select(b => b.CoverImageUrl).ToList();
+
             foreach (var board in project.Boards)
             {
                 db.Cards.RemoveRange(board.Columns.SelectMany(c => c.Cards));
@@ -88,6 +93,50 @@ public static class ProjectEndpoints
             db.ProjectMembers.RemoveRange(project.Members);
             db.Projects.Remove(project);
             await db.SaveChangesAsync();
+
+            if (!string.IsNullOrEmpty(projectCover)) CoverImageHelper.DeleteLocalImage(env, projectCover);
+            foreach (var url in boardCovers)
+                if (!string.IsNullOrEmpty(url)) CoverImageHelper.DeleteLocalImage(env, url);
+
+            return Results.NoContent();
+        }).RequireAuthorization();
+
+        app.MapPost("/api/projects/{projectId}/cover", async (
+            int projectId, IFormFile file, [FromQuery] string? position,
+            ApplicationDbContext db, ClaimsPrincipal user, IWebHostEnvironment env) =>
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId);
+            if (project == null) return Results.NotFound();
+
+            var validationError = CoverImageHelper.ValidateImage(file);
+            if (validationError != null) return Results.BadRequest(validationError);
+
+            var oldUrl = project.CoverImageUrl;
+            var newUrl = await CoverImageHelper.SaveImageAsync(env, "project-covers", file);
+            var objectPosition = string.IsNullOrWhiteSpace(position) ? "50% 50%" : position;
+
+            project.CoverImageUrl = newUrl;
+            project.CoverObjectPosition = objectPosition;
+            await db.SaveChangesAsync();
+
+            if (!string.IsNullOrEmpty(oldUrl)) CoverImageHelper.DeleteLocalImage(env, oldUrl);
+            return Results.Ok(new { coverImageUrl = newUrl, coverObjectPosition = objectPosition });
+        }).DisableAntiforgery().RequireAuthorization();
+
+        app.MapDelete("/api/projects/{projectId}/cover", async (
+            int projectId, ApplicationDbContext db, ClaimsPrincipal user, IWebHostEnvironment env) =>
+        {
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId);
+            if (project == null) return Results.NotFound();
+
+            var oldUrl = project.CoverImageUrl;
+            project.CoverImageUrl = null;
+            project.CoverObjectPosition = null;
+            await db.SaveChangesAsync();
+
+            if (!string.IsNullOrEmpty(oldUrl)) CoverImageHelper.DeleteLocalImage(env, oldUrl);
             return Results.NoContent();
         }).RequireAuthorization();
 

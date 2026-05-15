@@ -6,6 +6,8 @@ public class Project
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public string Color { get; set; } = "#00d4ff";
+    public string? CoverImageUrl { get; set; }
+    public string? CoverObjectPosition { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string OwnerId { get; set; } = string.Empty;
     public ApplicationUser Owner { get; set; } = null!;

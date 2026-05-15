@@ -50,7 +50,7 @@ public static class AuthEndpoints
             if (user == null)
                 return Results.Unauthorized();
 
-            var result = await signInManager.PasswordSignInAsync(user.UserName!, request.Password, false, false);
+            var result = await signInManager.CheckPasswordSignInAsync(user, request.Password, false);
             if (!result.Succeeded)
                 return Results.Unauthorized();
 
