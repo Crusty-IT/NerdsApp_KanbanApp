@@ -481,12 +481,6 @@ $RECYCLE.BIN/
 # Vim temporary swap files
 *.swp
 
- 
- #   I D E 
- 
- . v s c o d e / 
- 
- 
 
 # local database
 kanban.db
@@ -507,3 +501,6 @@ TestResults/
 kanban.db-shm
 kanban.db-walappsettings.Production.json
 appsettings.Production.json
+
+# Claude Code local settings
+.claude-code/
