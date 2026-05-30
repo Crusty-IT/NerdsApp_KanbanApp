@@ -9,7 +9,7 @@ in-app notifications when cards are assigned to them.
 
 ## Repository & Hosting
 
-- GitHub: https://github.com/Shellty-IT/KanbanApp (confirm URL)
+- GitHub: https://github.com/Shellty-IT/NerdsApp_KanbanApp
 - Local: `C:\Users\Tomek\Desktop\Projekty\NerdsFamily\KanbanApp_Project`
 - Backend: Azure App Service — https://shellty-kanban-api.azurewebsites.net
 - Frontend: Azure App Service — https://shellty-kanban.azurewebsites.net
