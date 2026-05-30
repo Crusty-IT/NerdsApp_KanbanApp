@@ -515,4 +515,5 @@ KanbanApp.Frontend/coverage/
 
 # Frontend env
 KanbanApp.Frontend/.env.local
-KanbanApp.Frontend/.env.*.localCLAUDE.md
+KanbanApp.Frontend/.env.*.local
+CLAUDE.md
