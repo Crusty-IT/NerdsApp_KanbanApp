@@ -499,8 +499,20 @@ TestResults/
 
 # SQLite helper files
 kanban.db-shm
-kanban.db-walappsettings.Production.json
+kanban.db-wal
 appsettings.Production.json
 
 # Claude Code local settings
 .claude-code/
+.claude/
+
+# Vite / React build output
+KanbanApp.Frontend/dist/
+KanbanApp.Frontend/dist-ssr/
+KanbanApp.Frontend/.vite/
+KanbanApp.Frontend/*.tsbuildinfo
+KanbanApp.Frontend/coverage/
+
+# Frontend env
+KanbanApp.Frontend/.env.local
+KanbanApp.Frontend/.env.*.local
