@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 
 const PASSWORD_RULES = [
     { test: p => p.length >= 8, label: 'At least 8 characters' },
@@ -15,6 +16,7 @@ export default function RegisterPage() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [privacyOpen, setPrivacyOpen] = useState(false);
     const navigate = useNavigate();
 
     const passwordValid = PASSWORD_RULES.every(r => r.test(password));
@@ -93,7 +95,19 @@ export default function RegisterPage() {
                 <p className="auth-footer">
                     Already have an account? <Link to="/login">Sign in</Link>
                 </p>
+                <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '12px' }}>
+                    By registering you agree to our{' '}
+                    <button
+                        type="button"
+                        onClick={() => setPrivacyOpen(true)}
+                        style={{ background: 'none', border: 'none', color: 'var(--accent-cyan)', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline', padding: 0 }}
+                    >
+                        Privacy Policy
+                    </button>
+                </p>
             </div>
+
+            <PrivacyPolicyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} />
         </div>
     );
 }
