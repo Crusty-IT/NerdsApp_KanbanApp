@@ -3,11 +3,13 @@ import { useNavigate, useLocation, NavLink, Outlet } from 'react-router-dom';
 import api from './services/api';
 import { useTopbar } from './context/TopbarContext';
 import NotificationBell from './components/NotificationBell';
+import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 
 export default function App() {
     const navigate = useNavigate();
     const location = useLocation();
     const [user, setUser] = useState(null);
+    const [privacyOpen, setPrivacyOpen] = useState(false);
     const { title, actions } = useTopbar();
 
     useEffect(() => {
@@ -69,8 +71,21 @@ export default function App() {
                     <button onClick={handleLogout} className="btn-secondary" style={{ width: '100%', marginTop: '8px' }}>
                         ⏻ Logout
                     </button>
+                    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+                        <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            © 2026 Shellty IT
+                        </div>
+                        <button
+                            onClick={() => setPrivacyOpen(true)}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline', padding: 0, marginTop: '2px' }}
+                        >
+                            Privacy Policy
+                        </button>
+                    </div>
                 </div>
             </aside>
+
+            <PrivacyPolicyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} />
 
             <div className="main-content">
                 <div className="topbar">

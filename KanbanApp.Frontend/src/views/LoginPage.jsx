@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
+import PrivacyPolicyModal from '../components/PrivacyPolicyModal';
 
 export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [privacyOpen, setPrivacyOpen] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
@@ -57,7 +59,19 @@ export default function LoginPage() {
                 <p className="auth-footer">
                     No account? <Link to="/register">Create one</Link>
                 </p>
+                <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '12px' }}>
+                    <button
+                        type="button"
+                        onClick={() => setPrivacyOpen(true)}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline', padding: 0 }}
+                    >
+                        Privacy Policy
+                    </button>
+                    {' · '}© 2026 Shellty IT
+                </p>
             </div>
+
+            <PrivacyPolicyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} />
         </div>
     );
 }
