@@ -28,6 +28,11 @@ public static class ProjectEndpoints
 
         app.MapPost("/api/projects", async (CreateProjectDto dto, ApplicationDbContext db, ClaimsPrincipal user) =>
         {
+            if (string.IsNullOrWhiteSpace(dto.Name))
+                return Results.BadRequest("Project name cannot be empty.");
+            if (dto.Name.Length > 100)
+                return Results.BadRequest("Project name cannot exceed 100 characters.");
+
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var project = new Project
             {
@@ -60,6 +65,11 @@ public static class ProjectEndpoints
 
         app.MapPut("/api/projects/{projectId}", async (int projectId, UpdateProjectDto dto, ApplicationDbContext db, ClaimsPrincipal user) =>
         {
+            if (string.IsNullOrWhiteSpace(dto.Name))
+                return Results.BadRequest("Project name cannot be empty.");
+            if (dto.Name.Length > 100)
+                return Results.BadRequest("Project name cannot exceed 100 characters.");
+
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var project = await db.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId);
             if (project == null) return Results.NotFound();
@@ -70,11 +80,12 @@ public static class ProjectEndpoints
             return Results.Ok(new { project.Id, project.Name, project.Color, project.CoverImageUrl, project.CoverObjectPosition });
         }).RequireAuthorization();
 
+        // C1: include card images in the cascade to clean up files from disk
         app.MapDelete("/api/projects/{projectId}", async (int projectId, ApplicationDbContext db, ClaimsPrincipal user, IWebHostEnvironment env) =>
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var project = await db.Projects
-                .Include(p => p.Boards).ThenInclude(b => b.Columns).ThenInclude(c => c.Cards)
+                .Include(p => p.Boards).ThenInclude(b => b.Columns).ThenInclude(c => c.Cards).ThenInclude(c => c.Images)
                 .Include(p => p.Boards).ThenInclude(b => b.BoardMembers)
                 .Include(p => p.Members)
                 .FirstOrDefaultAsync(p => p.Id == projectId && p.OwnerId == userId);
@@ -82,6 +93,12 @@ public static class ProjectEndpoints
 
             var projectCover = project.CoverImageUrl;
             var boardCovers = project.Boards.Select(b => b.CoverImageUrl).ToList();
+            var cardImageUrls = project.Boards
+                .SelectMany(b => b.Columns)
+                .SelectMany(c => c.Cards)
+                .SelectMany(c => c.Images)
+                .Select(i => i.Url)
+                .ToList();
 
             foreach (var board in project.Boards)
             {
@@ -94,9 +111,11 @@ public static class ProjectEndpoints
             db.Projects.Remove(project);
             await db.SaveChangesAsync();
 
-            if (!string.IsNullOrEmpty(projectCover)) CoverImageHelper.DeleteLocalImage(env, projectCover);
+            CoverImageHelper.DeleteLocalImage(env, projectCover);
             foreach (var url in boardCovers)
-                if (!string.IsNullOrEmpty(url)) CoverImageHelper.DeleteLocalImage(env, url);
+                CoverImageHelper.DeleteLocalImage(env, url);
+            foreach (var url in cardImageUrls)
+                CoverImageHelper.DeleteLocalImage(env, url);
 
             return Results.NoContent();
         }).RequireAuthorization();
@@ -112,6 +131,9 @@ public static class ProjectEndpoints
             var validationError = CoverImageHelper.ValidateImage(file);
             if (validationError != null) return Results.BadRequest(validationError);
 
+            if (!string.IsNullOrWhiteSpace(position) && !CoverImageHelper.IsValidObjectPosition(position))
+                return Results.BadRequest("Invalid position format.");
+
             var oldUrl = project.CoverImageUrl;
             var newUrl = await CoverImageHelper.SaveImageAsync(env, "project-covers", file);
             var objectPosition = string.IsNullOrWhiteSpace(position) ? "50% 50%" : position;
@@ -120,7 +142,7 @@ public static class ProjectEndpoints
             project.CoverObjectPosition = objectPosition;
             await db.SaveChangesAsync();
 
-            if (!string.IsNullOrEmpty(oldUrl)) CoverImageHelper.DeleteLocalImage(env, oldUrl);
+            CoverImageHelper.DeleteLocalImage(env, oldUrl);
             return Results.Ok(new { coverImageUrl = newUrl, coverObjectPosition = objectPosition });
         }).DisableAntiforgery().RequireAuthorization();
 
@@ -136,7 +158,7 @@ public static class ProjectEndpoints
             project.CoverObjectPosition = null;
             await db.SaveChangesAsync();
 
-            if (!string.IsNullOrEmpty(oldUrl)) CoverImageHelper.DeleteLocalImage(env, oldUrl);
+            CoverImageHelper.DeleteLocalImage(env, oldUrl);
             return Results.NoContent();
         }).RequireAuthorization();
 

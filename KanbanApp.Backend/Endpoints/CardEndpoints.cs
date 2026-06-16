@@ -20,6 +20,11 @@ public static class CardEndpoints
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardMember");
             if (!authResult.Succeeded) return Results.Forbid();
 
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return Results.BadRequest("Title cannot be empty.");
+            if (dto.Title.Length > 200)
+                return Results.BadRequest("Title cannot exceed 200 characters.");
+
             var card = await cardService.CreateAsync(boardId, dto.ColumnId, dto.Title, dto.Description, dto.DueDate, dto.Priority);
             return card is null
                 ? Results.BadRequest("Column not found.")
@@ -28,12 +33,25 @@ public static class CardEndpoints
         });
 
         cards.MapPut("/{cardId}", async (int boardId, int cardId, UpdateCardDto dto, ICardService cardService,
+            IBoardService boardService,
             IAuthorizationService authorizationService, ClaimsPrincipal user) =>
         {
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardMember");
             if (!authResult.Succeeded) return Results.Forbid();
 
-            var card = await cardService.UpdateAsync(boardId, cardId, dto.Title, dto.Description, dto.ColumnId, dto.AssignedToUserId, dto.DueDate, dto.Priority);
+            if (string.IsNullOrWhiteSpace(dto.Title))
+                return Results.BadRequest("Title cannot be empty.");
+            if (dto.Title.Length > 200)
+                return Results.BadRequest("Title cannot exceed 200 characters.");
+
+            if (!string.IsNullOrEmpty(dto.AssignedToUserId))
+            {
+                var assigneeIsMember = await boardService.IsMemberAsync(boardId, dto.AssignedToUserId);
+                if (!assigneeIsMember) return Results.BadRequest("Assigned user is not a board member.");
+            }
+
+            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            var card = await cardService.UpdateAsync(boardId, cardId, dto.Title, dto.Description, dto.ColumnId, dto.AssignedToUserId, dto.DueDate, dto.Priority, userId);
             return card is null
                 ? Results.NotFound()
                 : Results.Ok(new
@@ -77,7 +95,7 @@ public static class CardEndpoints
             if (!isMember) return Results.BadRequest("User is not a board member.");
 
             var assignedByUserId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
-            var card = await cardService.AssignCardAsync(cardId, dto.UserId, assignedByUserId);
+            var card = await cardService.AssignCardAsync(boardId, cardId, dto.UserId, assignedByUserId);
             return card is null ? Results.NotFound() : Results.Ok(new { card.Id, card.Title, card.AssignedToUserId });
         });
 
@@ -115,7 +133,10 @@ public static class CardEndpoints
             var validationError = CoverImageHelper.ValidateImage(file);
             if (validationError != null) return Results.BadRequest(validationError);
 
-            var uploadsFolder = Path.Combine(GetWebRoot(env), "card-images");
+            if (!string.IsNullOrWhiteSpace(position) && !CoverImageHelper.IsValidObjectPosition(position))
+                return Results.BadRequest("Invalid position format.");
+
+            var uploadsFolder = Path.Combine(CoverImageHelper.GetWebRoot(env), "card-images");
             Directory.CreateDirectory(uploadsFolder);
 
             var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
@@ -156,13 +177,6 @@ public static class CardEndpoints
     private static CardImageDto ToDto(CardImage image)
         => new(image.Id, image.FileName, image.Url, image.ContentType, image.ObjectPosition, image.UploadedAt);
 
-    private static string GetWebRoot(IWebHostEnvironment env)
-        => env.WebRootPath ?? Path.Combine(env.ContentRootPath, "wwwroot");
-
     private static void DeleteLocalImage(IWebHostEnvironment env, string url)
-    {
-        if (string.IsNullOrEmpty(url) || url.StartsWith("http")) return;
-        var filePath = Path.Combine(GetWebRoot(env), url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
-        if (File.Exists(filePath)) File.Delete(filePath);
-    }
+        => CoverImageHelper.DeleteLocalImage(env, url);
 }

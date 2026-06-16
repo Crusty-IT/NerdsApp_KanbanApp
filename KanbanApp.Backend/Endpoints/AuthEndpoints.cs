@@ -55,7 +55,7 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
 
             var key = configuration["Jwt:Key"]!;
-            var accessToken = GenerateAccessToken(user, key);
+            var accessToken = GenerateAccessToken(user, key, configuration["Jwt:Issuer"], configuration["Jwt:Audience"]);
             var refreshToken = GenerateRefreshToken();
 
             db.RefreshTokens.Add(new RefreshToken
@@ -72,31 +72,54 @@ public static class AuthEndpoints
         app.MapPost("/api/auth/refresh", async (
             [FromBody] RefreshRequest request,
             ApplicationDbContext db,
-            UserManager<ApplicationUser> userManager,
             IConfiguration configuration) =>
         {
-            var stored = await db.RefreshTokens
-                .Include(rt => rt.User)
-                .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+            var now = DateTime.UtcNow;
+            RefreshToken? stored;
 
-            if (stored == null || stored.IsRevoked || stored.ExpiresAt < DateTime.UtcNow)
+            if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+            {
+                stored = await db.RefreshTokens
+                    .Include(rt => rt.User)
+                    .FirstOrDefaultAsync(rt =>
+                        rt.Token == request.RefreshToken &&
+                        !rt.IsRevoked &&
+                        rt.ExpiresAt > now);
+
+                if (stored == null)
+                    return Results.Unauthorized();
+
+                stored.IsRevoked = true;
+            }
+            else
+            {
+                // Atomic revoke: only one concurrent request with the same token can succeed.
+                var revoked = await db.RefreshTokens
+                    .Where(rt => rt.Token == request.RefreshToken && !rt.IsRevoked && rt.ExpiresAt > now)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(rt => rt.IsRevoked, true));
+
+                if (revoked == 0)
+                    return Results.Unauthorized();
+
+                stored = await db.RefreshTokens
+                    .Include(rt => rt.User)
+                    .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+            }
+
+            if (stored == null)
                 return Results.Unauthorized();
-
-            stored.IsRevoked = true;
 
             var newRefreshToken = GenerateRefreshToken();
             db.RefreshTokens.Add(new RefreshToken
             {
                 Token = newRefreshToken,
-                UserId = stored.UserId,
+                UserId = stored!.UserId,
                 ExpiresAt = DateTime.UtcNow.AddDays(7)
             });
-
             await db.SaveChangesAsync();
 
             var key = configuration["Jwt:Key"]!;
-            var accessToken = GenerateAccessToken(stored.User, key);
-
+            var accessToken = GenerateAccessToken(stored.User, key, configuration["Jwt:Issuer"], configuration["Jwt:Audience"]);
             return Results.Ok(new { accessToken, refreshToken = newRefreshToken });
         });
 
@@ -117,7 +140,7 @@ public static class AuthEndpoints
         }).RequireAuthorization();
     }
 
-    private static string GenerateAccessToken(ApplicationUser user, string key)
+    private static string GenerateAccessToken(ApplicationUser user, string key, string? issuer, string? audience)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var tokenKey = Encoding.UTF8.GetBytes(key);
@@ -130,6 +153,8 @@ public static class AuthEndpoints
                 new Claim(ClaimTypes.Email, user.Email ?? "")
             }),
             Expires = DateTime.UtcNow.AddMinutes(15),
+            Issuer = issuer,
+            Audience = audience,
             SigningCredentials = new SigningCredentials(
                 new SymmetricSecurityKey(tokenKey),
                 SecurityAlgorithms.HmacSha256Signature)

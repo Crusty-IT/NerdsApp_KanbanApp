@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useTopbar } from '../context/TopbarContext';
+import PresenceBar from '../components/PresenceBar';
 
 export function useBoardTopbar({
                                    board,
@@ -12,7 +13,8 @@ export function useBoardTopbar({
                                    clearSearch,
                                    navigate,
                                    setShowInvite,
-                                   setShowMembers
+                                   setShowMembers,
+                                   presenceUsers = []
                                }) {
     const { setTitle, setActions } = useTopbar();
 
@@ -29,50 +31,38 @@ export function useBoardTopbar({
         setTitle(board.name);
         setActions({
             left: (
-                <button className="btn-secondary" onClick={() => navigate(-1)} style={{ fontSize: '14px', padding: '6px 12px' }}>
-                    ← Back
+                <button className="btn-secondary topbar-back-button" onClick={() => navigate(-1)}>
+                    Back
                 </button>
             ),
             right: (
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', gap: '4px' }}>
+                <div className="board-topbar-actions">
+                    <PresenceBar users={presenceUsers} />
+
+                    <div className="board-search">
                         <input
                             type="text"
+                            aria-label="Search cards"
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             onKeyDown={e => e.key === 'Enter' && handleSearch()}
                             placeholder="Search cards..."
-                            style={{
-                                background: 'var(--bg-secondary)',
-                                border: '1px solid var(--border)',
-                                borderRadius: 'var(--radius)',
-                                color: 'var(--text-primary)',
-                                padding: '6px 10px',
-                                fontSize: '13px',
-                                width: '160px'
-                            }}
+                            className="board-search-input"
                         />
                         {searchQuery && (
-                            <button className="btn-secondary" onClick={clearSearch} style={{ padding: '6px 8px', fontSize: '13px' }}>
-                                ✕
+                            <button className="btn-secondary board-search-clear" onClick={clearSearch} aria-label="Clear search">
+                                x
                             </button>
                         )}
                     </div>
 
                     <select
+                        aria-label="Filter by member"
                         value={filterUserId}
                         onChange={e => setFilterUserId(e.target.value)}
-                        style={{
-                            background: 'var(--bg-secondary)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 'var(--radius)',
-                            color: 'var(--text-primary)',
-                            padding: '6px 10px',
-                            fontSize: '13px',
-                            cursor: 'pointer'
-                        }}
+                        className="board-member-filter"
                     >
-                        <option value="">Members</option>
+                        <option value="">All members</option>
                         {boardMembers.map(m => (
                             <option key={m.userId} value={m.userId}>
                                 {m.userName || m.email}
@@ -80,12 +70,12 @@ export function useBoardTopbar({
                         ))}
                     </select>
 
-                    <button className="btn-secondary" onClick={() => setShowInvite(true)} style={{ fontSize: '13px', padding: '6px 12px' }}>
-                        👥 Invite
+                    <button className="btn-secondary board-action-button" onClick={() => setShowInvite(true)}>
+                        Invite
                     </button>
 
                     {board.projectId && (
-                        <button className="btn-secondary" onClick={() => setShowMembers(true)} style={{ fontSize: '13px', padding: '6px 12px' }}>
+                        <button className="btn-secondary board-action-button" onClick={() => setShowMembers(true)}>
                             Members
                         </button>
                     )}
@@ -104,6 +94,7 @@ export function useBoardTopbar({
         navigate,
         setShowInvite,
         setShowMembers,
+        presenceUsers,
         setTitle,
         setActions
     ]);

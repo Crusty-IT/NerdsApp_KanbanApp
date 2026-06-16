@@ -1,8 +1,91 @@
 import api from '../services/api';
 import { useTopbar } from '../context/TopbarContext';
+import { useSignalREvents } from './useSignalREvents';
+import { getCurrentUserId } from '../services/signalr';
 
-export function useCards(boardId, board, setBoard, setError) {
+export function useCards(boardId, board, setBoard, setError, connection) {
     const { fetchNotifications } = useTopbar();
+
+    useSignalREvents({
+        connection,
+        eventName: 'CardMoved',
+        handler: ({ cardId, fromColumnId, toColumnId, newPosition, movedByUserId }) => {
+            if (movedByUserId && movedByUserId === getCurrentUserId()) return;
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                const fromCol = updated.columns.find(c => c.id === fromColumnId);
+                const toCol = updated.columns.find(c => c.id === toColumnId);
+                if (!fromCol || !toCol) return prev;
+                const idx = fromCol.cards.findIndex(c => c.id === cardId);
+                if (idx === -1) return prev;
+                const [card] = fromCol.cards.splice(idx, 1);
+                fromCol.cards.forEach((c, i) => { c.position = i; });
+                const insertAt = Math.max(0, Math.min(newPosition, toCol.cards.length));
+                toCol.cards.splice(insertAt, 0, card);
+                toCol.cards.forEach((c, i) => { c.position = i; });
+                return updated;
+            });
+        },
+    });
+
+    useSignalREvents({
+        connection,
+        eventName: 'CardCreated',
+        handler: ({ card, columnId }) => {
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                const col = updated.columns.find(c => c.id === columnId);
+                if (!col) return prev;
+                const existingIdx = col.cards.findIndex(c => c.id === card.id);
+                if (existingIdx !== -1) {
+                    col.cards[existingIdx] = { ...col.cards[existingIdx], ...card };
+                } else {
+                    col.cards.push(card);
+                }
+                return updated;
+            });
+        },
+    });
+
+    useSignalREvents({
+        connection,
+        eventName: 'CardUpdated',
+        handler: ({ card }) => {
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                const target = updated.columns.flatMap(c => c.cards).find(c => c.id === card.id);
+                if (target) Object.assign(target, card);
+                return updated;
+            });
+        },
+    });
+
+    useSignalREvents({
+        connection,
+        eventName: 'CardDeleted',
+        handler: ({ cardId }) => {
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                updated.columns.forEach(col => {
+                    col.cards = col.cards.filter(c => c.id !== cardId);
+                });
+                return updated;
+            });
+        },
+    });
+
+    useSignalREvents({
+        connection,
+        eventName: 'CardAssigned',
+        handler: ({ cardId, assignedToUserId }) => {
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                const card = updated.columns.flatMap(c => c.cards).find(c => c.id === cardId);
+                if (card) card.assignedToUserId = assignedToUserId;
+                return updated;
+            });
+        },
+    });
 
     const handleCreateCard = async (columnId, title) => {
         try {

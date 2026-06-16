@@ -4,6 +4,8 @@ import api from './services/api';
 import { useTopbar } from './context/TopbarContext';
 import NotificationBell from './components/NotificationBell';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
+import Toast from './components/Toast';
+import { useToast } from './hooks/useToast';
 
 export default function App() {
     const navigate = useNavigate();
@@ -11,6 +13,7 @@ export default function App() {
     const [user, setUser] = useState(null);
     const [privacyOpen, setPrivacyOpen] = useState(false);
     const { title, actions } = useTopbar();
+    const { toasts, removeToast } = useToast();
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -87,13 +90,19 @@ export default function App() {
 
             <PrivacyPolicyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} />
 
+            <div style={{ position: 'fixed', bottom: '24px', right: '24px', display: 'flex', flexDirection: 'column-reverse', gap: '8px', zIndex: 9999 }}>
+                {toasts.map(t => (
+                    <Toast key={t.id} message={t.message} onClose={() => removeToast(t.id)} />
+                ))}
+            </div>
+
             <div className="main-content">
                 <div className="topbar">
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+                    <div className="topbar-left">
                         {actions?.left}
                     </div>
                     <span className="topbar-title">{title}</span>
-                    <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
+                    <div className="topbar-right">
                         <NotificationBell />
                         {actions?.right}
                     </div>

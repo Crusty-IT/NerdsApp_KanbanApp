@@ -1,18 +1,14 @@
-﻿namespace KanbanApp.Tests;
+namespace KanbanApp.Tests;
 
-public class ColumnTests : IClassFixture<KanbanWebAppFactory>
+public class ColumnTests : TestBase
 {
-    private readonly KanbanWebAppFactory _factory;
-
-    public ColumnTests(KanbanWebAppFactory factory)
-    {
-        _factory = factory;
-    }
+    public ColumnTests(KanbanWebAppFactory factory) : base(factory) { }
 
     [Fact]
     public async Task CreateColumn_AsMember_ReturnsCreated()
     {
-        var (client, boardId) = await CreateClientWithBoard("col_member1@test.com");
+        var client = await CreateAuthenticatedClientAsync("col_member1@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
 
         var response = await client.PostAsJsonAsync($"/api/boards/{boardId}/columns",
             new { name = "To Do" });
@@ -23,8 +19,9 @@ public class ColumnTests : IClassFixture<KanbanWebAppFactory>
     [Fact]
     public async Task CreateColumn_AsNonMember_ReturnsForbidden()
     {
-        var (owner, boardId) = await CreateClientWithBoard("col_owner2@test.com");
-        var outsider = await CreateAuthenticatedClient("col_outsider2@test.com");
+        var owner = await CreateAuthenticatedClientAsync("col_owner2@test.com");
+        var boardId = await CreateBoardAsync(owner, "Test Board");
+        var outsider = await CreateAuthenticatedClientAsync("col_outsider2@test.com");
 
         var response = await outsider.PostAsJsonAsync($"/api/boards/{boardId}/columns",
             new { name = "Hack" });
@@ -33,10 +30,35 @@ public class ColumnTests : IClassFixture<KanbanWebAppFactory>
     }
 
     [Fact]
+    public async Task CreateColumn_WithEmptyName_ReturnsBadRequest()
+    {
+        var client = await CreateAuthenticatedClientAsync("col_empty@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+
+        var response = await client.PostAsJsonAsync($"/api/boards/{boardId}/columns",
+            new { name = "" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task CreateColumn_WithTooLongName_ReturnsBadRequest()
+    {
+        var client = await CreateAuthenticatedClientAsync("col_longname@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+
+        var response = await client.PostAsJsonAsync($"/api/boards/{boardId}/columns",
+            new { name = new string('x', 101) });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
     public async Task UpdateColumn_AsMember_ReturnsOk()
     {
-        var (client, boardId) = await CreateClientWithBoard("col_member3@test.com");
-        var colId = await CreateColumn(client, boardId, "To Do");
+        var client = await CreateAuthenticatedClientAsync("col_member3@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+        var colId = await CreateColumnAsync(client, boardId, "To Do");
 
         var response = await client.PutAsJsonAsync($"/api/boards/{boardId}/columns/{colId}",
             new { name = "Done" });
@@ -47,10 +69,37 @@ public class ColumnTests : IClassFixture<KanbanWebAppFactory>
     }
 
     [Fact]
+    public async Task UpdateColumn_AsNonMember_ReturnsForbidden()
+    {
+        var owner = await CreateAuthenticatedClientAsync("col_owner_upd@test.com");
+        var boardId = await CreateBoardAsync(owner, "Test Board");
+        var colId = await CreateColumnAsync(owner, boardId, "To Do");
+        var outsider = await CreateAuthenticatedClientAsync("col_outsider_upd@test.com");
+
+        var response = await outsider.PutAsJsonAsync($"/api/boards/{boardId}/columns/{colId}",
+            new { name = "Hacked" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task UpdateColumn_NonExistent_ReturnsNotFound()
+    {
+        var client = await CreateAuthenticatedClientAsync("col_notfound_upd@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+
+        var response = await client.PutAsJsonAsync($"/api/boards/{boardId}/columns/99999",
+            new { name = "Ghost" });
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task DeleteColumn_Empty_ReturnsNoContent()
     {
-        var (client, boardId) = await CreateClientWithBoard("col_member4@test.com");
-        var colId = await CreateColumn(client, boardId, "To Delete");
+        var client = await CreateAuthenticatedClientAsync("col_member4@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+        var colId = await CreateColumnAsync(client, boardId, "To Delete");
 
         var response = await client.DeleteAsync($"/api/boards/{boardId}/columns/{colId}");
 
@@ -58,10 +107,35 @@ public class ColumnTests : IClassFixture<KanbanWebAppFactory>
     }
 
     [Fact]
+    public async Task DeleteColumn_WithCards_ReturnsBadRequest()
+    {
+        var client = await CreateAuthenticatedClientAsync("col_withcards@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+        var colId = await CreateColumnAsync(client, boardId, "Has Cards");
+        await CreateCardAsync(client, boardId, colId, "Card 1");
+
+        var response = await client.DeleteAsync($"/api/boards/{boardId}/columns/{colId}");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task DeleteColumn_NonExistent_ReturnsNotFound()
+    {
+        var client = await CreateAuthenticatedClientAsync("col_notfound_del@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+
+        var response = await client.DeleteAsync($"/api/boards/{boardId}/columns/99999");
+
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task DeleteColumn_WithCards_ClearsCardsAndReturnsNoContent()
     {
-        var (client, boardId) = await CreateClientWithBoard("col_member5@test.com");
-        var colId = await CreateColumn(client, boardId, "With Cards");
+        var client = await CreateAuthenticatedClientAsync("col_member5@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+        var colId = await CreateColumnAsync(client, boardId, "With Cards");
 
         await client.PostAsJsonAsync($"/api/boards/{boardId}/cards",
             new { title = "Card 1", columnId = colId });
@@ -78,8 +152,9 @@ public class ColumnTests : IClassFixture<KanbanWebAppFactory>
     [Fact]
     public async Task UpdateColumn_WithColor_ReturnsUpdatedColor()
     {
-        var (client, boardId) = await CreateClientWithBoard("col_member6@test.com");
-        var colId = await CreateColumn(client, boardId, "Colored");
+        var client = await CreateAuthenticatedClientAsync("col_member6@test.com");
+        var boardId = await CreateBoardAsync(client, "Test Board");
+        var colId = await CreateColumnAsync(client, boardId, "Colored");
 
         var response = await client.PutAsJsonAsync($"/api/boards/{boardId}/columns/{colId}",
             new { name = "Colored", color = "#ef4444" });
@@ -87,33 +162,5 @@ public class ColumnTests : IClassFixture<KanbanWebAppFactory>
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var data = await response.Content.ReadFromJsonAsync<JsonElement>();
         Assert.Equal("#ef4444", data.GetProperty("color").GetString());
-    }
-
-    private async Task<HttpClient> CreateAuthenticatedClient(string email)
-    {
-        var client = _factory.CreateClient();
-        await client.PostAsJsonAsync("/register", new { email, password = "Test123!" });
-        var login = await client.PostAsJsonAsync(
-            "/login?useCookies=false&useSessionCookies=false",
-            new { email, password = "Test123!" });
-        var token = (await login.Content.ReadFromJsonAsync<JsonElement>())
-            .GetProperty("accessToken").GetString()!;
-        client.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        return client;
-    }
-
-    private async Task<(HttpClient client, int boardId)> CreateClientWithBoard(string email)
-    {
-        var client = await CreateAuthenticatedClient(email);
-        var board = await client.PostAsJsonAsync("/api/boards", new { boardName = "Test Board" });
-        var boardId = (await board.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
-        return (client, boardId);
-    }
-
-    private async Task<int> CreateColumn(HttpClient client, int boardId, string name)
-    {
-        var response = await client.PostAsJsonAsync($"/api/boards/{boardId}/columns", new { name });
-        return (await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("id").GetInt32();
     }
 }

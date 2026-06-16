@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { BASE_URL } from '../services/api';
 import FocalPointPicker from './FocalPointPicker';
 
@@ -32,7 +32,19 @@ function getImageSrc(url) {
     return url.startsWith('http') ? url : `${BASE_URL}${url}`;
 }
 
-export default function Card({ card, isDragging, onUpdate, onDelete, onUploadImage, onDeleteImage, boardMembers, columnColor }) {
+export default function Card({
+                                 card,
+                                 isDragging,
+                                 onUpdate,
+                                 onDelete,
+                                 onUploadImage,
+                                 onDeleteImage,
+                                 boardMembers,
+                                 columnColor,
+                                 editingUser,
+                                 onStartEditing,
+                                 onStopEditing
+                             }) {
     const [showModal, setShowModal] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [lightboxImage, setLightboxImage] = useState(null);
@@ -41,10 +53,12 @@ export default function Card({ card, isDragging, onUpdate, onDelete, onUploadIma
     const [assignedTo, setAssignedTo] = useState(card.assignedToUserId || '');
     const [dueDate, setDueDate] = useState(card.dueDate ? card.dueDate.split('T')[0] : '');
     const [priority, setPriority] = useState(card.priority || null);
+    const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [pendingImageFile, setPendingImageFile] = useState(null);
     const [pendingImageSrc, setPendingImageSrc] = useState(null);
     const fileRef = useRef(null);
+    const editingStartedRef = useRef(false);
 
     const images = card.images || [];
     const firstImage = images[0];
@@ -54,23 +68,54 @@ export default function Card({ card, isDragging, onUpdate, onDelete, onUploadIma
     const overdue = isOverdue(card.dueDate);
     const borderColor = columnColor ? `${columnColor}33` : 'var(--border)';
     const borderLeftColor = columnColor || 'var(--border)';
+    const editingLabel = editingUser?.userName || 'Someone';
+
+    const openCardModal = () => {
+        setShowModal(true);
+        if (!editingStartedRef.current) {
+            editingStartedRef.current = true;
+            onStartEditing?.(card.id);
+        }
+    };
+
+    const closeCardModal = () => {
+        setShowModal(false);
+        setLightboxImage(null);
+        if (editingStartedRef.current) {
+            editingStartedRef.current = false;
+            onStopEditing?.(card.id);
+        }
+    };
+
+    useEffect(() => {
+        return () => {
+            if (editingStartedRef.current) {
+                onStopEditing?.(card.id);
+            }
+        };
+    }, [card.id, onStopEditing]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        await onUpdate(card.id, {
-            title: title.trim(),
-            description: description.trim(),
-            assignedToUserId: assignedTo || null,
-            dueDate: dueDate || null,
-            priority: priority || null
-        });
-        setShowModal(false);
+        setSaving(true);
+        try {
+            await onUpdate(card.id, {
+                title: title.trim(),
+                description: description.trim(),
+                assignedToUserId: assignedTo || null,
+                dueDate: dueDate || null,
+                priority: priority || null
+            });
+            closeCardModal();
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleDelete = async () => {
         await onDelete(card.id);
         setShowConfirm(false);
-        setShowModal(false);
+        closeCardModal();
     };
 
     const handleImageChange = (e) => {
@@ -98,7 +143,7 @@ export default function Card({ card, isDragging, onUpdate, onDelete, onUploadIma
     return (
         <>
             <div
-                onClick={() => setShowModal(true)}
+                onClick={openCardModal}
                 style={{
                     background: isDragging ? 'var(--bg-hover)' : 'var(--bg-card)',
                     borderTop: `1px solid ${isDragging ? 'var(--accent-cyan)' : borderColor}`,
@@ -133,6 +178,12 @@ export default function Card({ card, isDragging, onUpdate, onDelete, onUploadIma
                                 </span>
                             )}
                         </div>
+
+                        {editingUser && (
+                            <div className="card-editing-badge" title={`${editingLabel} is editing this card`}>
+                                Editing: {editingLabel}
+                            </div>
+                        )}
 
                         {card.description && (
                             <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '8px', lineHeight: '1.45', overflowWrap: 'anywhere' }}>
@@ -181,17 +232,17 @@ export default function Card({ card, isDragging, onUpdate, onDelete, onUploadIma
             </div>
 
             {showModal && (
-                <div className="modal-overlay" onClick={() => { setShowModal(false); setLightboxImage(null); }}>
+                <div className="modal-overlay" onClick={closeCardModal}>
                     <div className="modal-box" onClick={e => e.stopPropagation()} style={{ maxWidth: '760px', maxHeight: '90vh', overflowY: 'auto' }}>
                         <h2>Edit Card</h2>
                         <form className="auth-form" onSubmit={handleSubmit}>
                             <div className="form-group">
-                                <label>Title</label>
-                                <input type="text" value={title} onChange={e => setTitle(e.target.value)} required autoFocus />
+                                <label htmlFor={`card-title-${card.id}`}>Title</label>
+                                <input id={`card-title-${card.id}`} type="text" value={title} onChange={e => setTitle(e.target.value)} required autoFocus />
                             </div>
                             <div className="form-group">
-                                <label>Description</label>
-                                <textarea value={description} onChange={e => setDescription(e.target.value)} rows={4} style={{ resize: 'vertical' }} />
+                                <label htmlFor={`card-desc-${card.id}`}>Description</label>
+                                <textarea id={`card-desc-${card.id}`} value={description} onChange={e => setDescription(e.target.value)} rows={4} style={{ resize: 'vertical' }} />
                             </div>
                             <div className="form-group">
                                 <label>Image</label>
@@ -272,9 +323,9 @@ export default function Card({ card, isDragging, onUpdate, onDelete, onUploadIma
                                 </div>
                             </div>
                             <div className="modal-actions">
-                                <button type="submit" className="btn-primary">Update</button>
+                                <button type="submit" className="btn-primary" disabled={saving}>{saving ? 'Saving...' : 'Update'}</button>
                                 <button type="button" className="btn-danger" onClick={() => setShowConfirm(true)}>Delete</button>
-                                <button type="button" className="btn-secondary" onClick={() => { setShowModal(false); setLightboxImage(null); }}>Cancel</button>
+                                <button type="button" className="btn-secondary" onClick={closeCardModal}>Cancel</button>
                             </div>
                         </form>
                     </div>

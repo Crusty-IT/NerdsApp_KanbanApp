@@ -17,7 +17,6 @@ public class BoardService : IBoardService
     {
         return await _context.Boards
             .Where(b => b.BoardMembers.Any(bm => bm.UserId == userId))
-            .Include(b => b.Columns)
             .OrderByDescending(b => b.CreatedAt)
             .ToListAsync();
     }

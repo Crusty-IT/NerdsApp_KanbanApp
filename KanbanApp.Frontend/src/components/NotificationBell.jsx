@@ -1,14 +1,42 @@
 import { useState, useEffect, useRef } from 'react';
+import { HubConnectionState } from '@microsoft/signalr';
 import { useTopbar } from '../context/TopbarContext';
+import { useSignalREvents } from '../hooks/useSignalREvents';
+import { getConnection } from '../services/signalr';
 
 export default function NotificationBell() {
-    const { notifications, unreadCount, fetchNotifications, markAllRead, markOneRead } = useTopbar();
+    const { notifications, unreadCount, fetchNotifications, markAllRead, markOneRead, addNotification, addToast } = useTopbar();
     const [open, setOpen] = useState(false);
     const ref = useRef(null);
+    const [connection] = useState(getConnection);
 
     useEffect(() => {
         fetchNotifications();
     }, []);
+
+    useEffect(() => {
+        if (!localStorage.getItem('token')) return;
+
+        let active = true;
+        if (connection.state === HubConnectionState.Disconnected) {
+            connection.start().catch(() => {});
+        }
+
+        connection.onreconnected(() => {
+            if (active) fetchNotifications();
+        });
+
+        return () => { active = false; };
+    }, []);
+
+    useSignalREvents({
+        connection,
+        eventName: 'NotificationReceived',
+        handler: (notification) => {
+            addNotification(notification);
+            addToast(notification.message);
+        },
+    });
 
     useEffect(() => {
         const handler = (e) => {

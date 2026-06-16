@@ -21,9 +21,22 @@ public static class BoardEndpoints
             return Results.Ok(result);
         }).RequireAuthorization();
 
-        app.MapPost("/api/boards", async (CreateBoardDto dto, IBoardService boardService, ClaimsPrincipal user) =>
+        // S4: validate projectId belongs to a project the user can access
+        app.MapPost("/api/boards", async (CreateBoardDto dto, IBoardService boardService,
+            ClaimsPrincipal user, ApplicationDbContext db) =>
         {
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (!string.IsNullOrWhiteSpace(dto.BoardName) && dto.BoardName.Length > 100)
+                return Results.BadRequest("Board name cannot exceed 100 characters.");
+
+            if (dto.ProjectId.HasValue)
+            {
+                var hasAccess = await db.Projects.AnyAsync(p => p.Id == dto.ProjectId
+                    && (p.OwnerId == userId || p.Members.Any(m => m.UserId == userId)));
+                if (!hasAccess) return Results.Forbid();
+            }
+
             var board = await boardService.CreateAsync(dto.BoardName, null, userId!, dto.ProjectId, dto.Color);
             return TypedResults.Created($"/api/boards/{board.Id}", new { board.Id, board.Name, board.Description, board.Color, board.CoverImageUrl, board.CoverObjectPosition, board.CreatedAt, board.ProjectId });
         }).RequireAuthorization();
@@ -101,24 +114,45 @@ public static class BoardEndpoints
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardOwner");
             if (!authResult.Succeeded) return Results.Forbid();
 
+            if (string.IsNullOrWhiteSpace(dto.Name))
+                return Results.BadRequest("Board name cannot be empty.");
+            if (dto.Name.Length > 100)
+                return Results.BadRequest("Board name cannot exceed 100 characters.");
+
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var board = await boardService.UpdateAsync(boardId, userId!, dto.Name, dto.Description, dto.Color);
             if (board is null) return Results.NotFound();
             return Results.Ok(new { board.Id, board.Name, board.Color, board.CoverImageUrl, board.CoverObjectPosition, board.CreatedAt });
         }).RequireAuthorization();
 
+        // C1: collect card image URLs before deletion and clean up files
         app.MapDelete("/api/boards/{boardId}", async (
             int boardId, IBoardService boardService,
-            IAuthorizationService authorizationService, ClaimsPrincipal user, IWebHostEnvironment env) =>
+            IAuthorizationService authorizationService, ClaimsPrincipal user,
+            IWebHostEnvironment env, ApplicationDbContext db) =>
         {
             var authResult = await authorizationService.AuthorizeAsync(user, boardId, "IsBoardOwner");
             if (!authResult.Succeeded) return Results.Forbid();
 
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var (coverUrl, _) = await boardService.GetCoverAsync(boardId, userId!);
+
+            var cardImageUrls = await (
+                from col in db.Columns
+                join card in db.Cards on col.Id equals card.ColumnId
+                join img in db.CardImages on card.Id equals img.CardId
+                where col.BoardId == boardId
+                select img.Url
+            ).ToListAsync();
+
             var deleted = await boardService.DeleteAsync(boardId, userId!);
-            if (deleted && !string.IsNullOrEmpty(coverUrl))
+            if (deleted)
+            {
                 CoverImageHelper.DeleteLocalImage(env, coverUrl);
+                foreach (var url in cardImageUrls)
+                    CoverImageHelper.DeleteLocalImage(env, url);
+            }
+
             return deleted ? Results.NoContent() : Results.NotFound();
         }).RequireAuthorization();
 
@@ -133,6 +167,9 @@ public static class BoardEndpoints
             var validationError = CoverImageHelper.ValidateImage(file);
             if (validationError != null) return Results.BadRequest(validationError);
 
+            if (!string.IsNullOrWhiteSpace(position) && !CoverImageHelper.IsValidObjectPosition(position))
+                return Results.BadRequest("Invalid position format.");
+
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
             var (oldUrl, _) = await boardService.GetCoverAsync(boardId, userId!);
             var newUrl = await CoverImageHelper.SaveImageAsync(env, "board-covers", file);
@@ -145,7 +182,7 @@ public static class BoardEndpoints
                 return Results.NotFound();
             }
 
-            if (!string.IsNullOrEmpty(oldUrl)) CoverImageHelper.DeleteLocalImage(env, oldUrl);
+            CoverImageHelper.DeleteLocalImage(env, oldUrl);
             return Results.Ok(new { coverImageUrl = newUrl, coverObjectPosition = objectPosition });
         }).DisableAntiforgery().RequireAuthorization();
 
@@ -161,7 +198,7 @@ public static class BoardEndpoints
             var updated = await boardService.UpdateCoverAsync(boardId, userId!, null, null);
             if (updated == null) return Results.NotFound();
 
-            if (!string.IsNullOrEmpty(oldUrl)) CoverImageHelper.DeleteLocalImage(env, oldUrl);
+            CoverImageHelper.DeleteLocalImage(env, oldUrl);
             return Results.NoContent();
         }).RequireAuthorization();
 

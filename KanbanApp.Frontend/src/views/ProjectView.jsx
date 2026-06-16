@@ -22,6 +22,7 @@ export default function ProjectView() {
     const [project, setProject] = useState(null);
     const [members, setMembers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [showInvite, setShowInvite] = useState(false);
     const [showMembers, setShowMembers] = useState(false);
@@ -69,7 +70,7 @@ export default function ProjectView() {
                 const response = await api.get(`/api/projects/${projectId}`);
                 if (!ignore) setProject(response.data);
             } catch {
-                console.error('Failed to fetch project');
+                if (!ignore) setFetchError(true);
             } finally {
                 if (!ignore) setLoading(false);
             }
@@ -253,10 +254,15 @@ export default function ProjectView() {
         if (!dateStr) return '';
         const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
         if (isNaN(d.getTime())) return '';
-        return d.toLocaleDateString('pl-PL');
+        return d.toLocaleDateString('en-GB');
     };
 
-    if (loading) return <div className="loading">loading project...</div>;
+    if (loading) return <div className="loading">Loading project...</div>;
+    if (fetchError) return (
+        <div className="page-content">
+            <p className="error-msg">Failed to load project. Please refresh the page.</p>
+        </div>
+    );
     if (!project) return <div className="page-content"><p>Project not found.</p></div>;
 
     return (
@@ -273,11 +279,11 @@ export default function ProjectView() {
                         <h2>Invite to Project</h2>
                         <form className="auth-form" onSubmit={handleInvite}>
                             <div className="form-group">
-                                <label>Email address</label>
-                                <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="user@example.com" autoFocus required />
+                                <label htmlFor="invite-email">Email address</label>
+                                <input id="invite-email" type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="user@example.com" autoFocus required />
                             </div>
                             {inviteError && <p className="error-msg">{inviteError}</p>}
-                            {inviteSuccess && <p style={{ color: 'var(--accent)', fontSize: '13px' }}>{inviteSuccess}</p>}
+                            {inviteSuccess && <p className="success-msg">{inviteSuccess}</p>}
                             <div className="modal-actions">
                                 <button type="submit" className="btn-primary">Send Invite</button>
                                 <button type="button" className="btn-secondary" onClick={() => { setShowInvite(false); setInviteEmail(''); setInviteError(''); setInviteSuccess(''); }}>Close</button>
@@ -328,8 +334,8 @@ export default function ProjectView() {
                         {error && <p className="error-msg" style={{ marginBottom: '12px' }}>{error}</p>}
                         <form className="auth-form" onSubmit={isEditing ? handleUpdate : handleCreateBoard}>
                             <div className="form-group">
-                                <label>Board Name</label>
-                                <input type="text" value={boardName} onChange={e => setBoardName(e.target.value)} placeholder="e.g. Sprint 1" autoFocus required />
+                                <label htmlFor="board-name">Board Name</label>
+                                <input id="board-name" type="text" value={boardName} onChange={e => setBoardName(e.target.value)} placeholder="e.g. Sprint 1" autoFocus required />
                             </div>
                             {isEditing && (
                                 <div className="form-group">
@@ -358,7 +364,7 @@ export default function ProjectView() {
                                 <label>Color</label>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
                                     {COLORS.map(c => (
-                                        <button key={c} type="button" onClick={() => setBoardColor(c)} style={{
+                                        <button key={c} type="button" onClick={() => setBoardColor(c)} aria-label={`Select color ${c}`} aria-pressed={boardColor === c} style={{
                                             width: '28px', height: '28px', borderRadius: '50%', background: c,
                                             border: boardColor === c ? '3px solid #fff' : '2px solid transparent',
                                             outline: boardColor === c ? `2px solid ${c}` : 'none', padding: 0, cursor: 'pointer'
@@ -404,8 +410,8 @@ export default function ProjectView() {
                                     <h3 style={{ color: board.color || project.color || COLORS[0], margin: 0, flex: 1 }}>{board.name}</h3>
                                     {project.isOwner && (
                                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                                            <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
-                                            <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
+                                            <button aria-label={`Edit ${board.name}`} className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
+                                            <button aria-label={`Delete ${board.name}`} className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(board); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
                                         </div>
                                     )}
                                 </div>
