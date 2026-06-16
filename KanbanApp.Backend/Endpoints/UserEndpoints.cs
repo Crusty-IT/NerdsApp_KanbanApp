@@ -24,22 +24,40 @@ public static class UserEndpoints
             return Results.Ok(profile);
         }).RequireAuthorization();
 
-        app.MapPost("/api/users/me/avatar", async (IFormFile file, ClaimsPrincipal user, IUserService userService, IWebHostEnvironment env) =>
+        // S5: validate file type and size; C2: clean up old avatar file
+        app.MapPost("/api/users/me/avatar", async (IFormFile file, ClaimsPrincipal user,
+            IUserService userService, IWebHostEnvironment env) =>
         {
+            var validationError = CoverImageHelper.ValidateImage(file);
+            if (validationError != null) return Results.BadRequest(validationError);
+
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier);
-            var uploadsFolder = Path.Combine(env.WebRootPath, "avatars");
+
+            var currentProfile = await userService.GetUserProfileAsync(userId!);
+            var oldAvatarUrl = currentProfile?.ProfilePictureUrl;
+
+            var uploadsFolder = Path.Combine(CoverImageHelper.GetWebRoot(env), "avatars");
             Directory.CreateDirectory(uploadsFolder);
-            var ext = Path.GetExtension(file.FileName);
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
             var fileName = $"{userId}{ext}";
             var filePath = Path.Combine(uploadsFolder, fileName);
             await using (var stream = new FileStream(filePath, FileMode.Create))
             {
                 await file.CopyToAsync(stream);
             }
+
             var url = $"/avatars/{fileName}";
             var profile = await userService.UpdateUserProfileAsync(userId!, null, url);
-            if (profile == null) return Results.NotFound();
+            if (profile == null)
+            {
+                File.Delete(filePath);
+                return Results.NotFound();
+            }
+
+            if (!string.IsNullOrEmpty(oldAvatarUrl) && oldAvatarUrl != url)
+                CoverImageHelper.DeleteLocalImage(env, oldAvatarUrl);
+
             return Results.Ok(profile);
-        }).RequireAuthorization();
+        }).DisableAntiforgery().RequireAuthorization();
     }
 }

@@ -4,6 +4,7 @@ import api from '../services/api';
 export default function ProfilePage() {
     const [profile, setProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(false);
     const [bio, setBio] = useState('');
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -21,7 +22,7 @@ export default function ProfilePage() {
                     setBio(response.data.bio || '');
                 }
             } catch {
-                console.error('Failed to fetch profile');
+                if (!ignore) setFetchError(true);
             } finally {
                 if (!ignore) setLoading(false);
             }
@@ -69,8 +70,12 @@ export default function ProfilePage() {
         }
     };
 
-    if (loading) return <div className="loading">loading profile...</div>;
-    if (!profile) return <div className="page-content"><p>Failed to load profile.</p></div>;
+    if (loading) return <div className="loading">Loading profile...</div>;
+    if (fetchError || !profile) return (
+        <div className="page-content">
+            <p className="error-msg">Failed to load profile. Please refresh the page.</p>
+        </div>
+    );
 
     const initials = profile.userName?.slice(0, 2).toUpperCase() ?? '??';
 
@@ -92,8 +97,10 @@ export default function ProfilePage() {
                     gap: '20px'
                 }}>
                     <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <div
+                        <button
+                            type="button"
                             onClick={() => fileRef.current.click()}
+                            aria-label="Change avatar"
                             style={{
                                 width: '64px',
                                 height: '64px',
@@ -108,30 +115,30 @@ export default function ProfilePage() {
                                 cursor: 'pointer',
                                 overflow: 'hidden',
                                 border: '2px solid var(--border)',
-                                position: 'relative'
+                                position: 'relative',
+                                padding: 0
                             }}
                         >
                             {profile.profilePictureUrl
                                 ? <img src={profile.profilePictureUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                 : initials
                             }
-                            <div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                background: 'rgba(0,0,0,0.4)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                opacity: 0,
-                                transition: 'opacity 0.2s',
-                                fontSize: '18px'
-                            }}
-                                 onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                                 onMouseLeave={e => e.currentTarget.style.opacity = 0}
-                            >
-                                📷
-                            </div>
-                        </div>
+                        </button>
+                        <div style={{
+                            position: 'absolute',
+                            bottom: 0,
+                            right: 0,
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            background: 'var(--bg-secondary)',
+                            border: '2px solid var(--border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '10px',
+                            pointerEvents: 'none'
+                        }}>📷</div>
                         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={handleAvatarUpload} />
                         {uploading && <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: 'var(--accent-cyan)' }}>...</div>}
                     </div>
@@ -156,8 +163,9 @@ export default function ProfilePage() {
                     )}
                     <form className="auth-form" onSubmit={handleSave}>
                         <div className="form-group">
-                            <label>Bio</label>
+                            <label htmlFor="profile-bio">Bio</label>
                             <textarea
+                                id="profile-bio"
                                 value={bio}
                                 onChange={e => setBio(e.target.value)}
                                 placeholder="Tell something about yourself..."

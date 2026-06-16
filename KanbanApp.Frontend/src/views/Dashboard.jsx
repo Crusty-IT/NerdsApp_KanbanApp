@@ -19,6 +19,7 @@ function getImageSrc(url) {
 export default function Dashboard() {
     const [projects, setProjects] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(false);
     const [showForm, setShowForm] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [editingProject, setEditingProject] = useState(null);
@@ -48,8 +49,8 @@ export default function Dashboard() {
             try {
                 const response = await api.get('/api/projects');
                 if (!ignore) setProjects(response.data);
-            } catch (err) {
-                console.error('Failed to fetch projects', err);
+            } catch {
+                if (!ignore) setFetchError(true);
             } finally {
                 if (!ignore) setLoading(false);
             }
@@ -187,10 +188,15 @@ export default function Dashboard() {
         if (!dateStr) return '';
         const d = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
         if (isNaN(d.getTime())) return '';
-        return d.toLocaleDateString('pl-PL');
+        return d.toLocaleDateString('en-GB');
     };
 
-    if (loading) return <div className="loading">loading projects...</div>;
+    if (loading) return <div className="loading">Loading projects...</div>;
+    if (fetchError) return (
+        <div className="page-content">
+            <p className="error-msg">Failed to load projects. Please refresh the page.</p>
+        </div>
+    );
 
     return (
         <div className="page-content fade-in">
@@ -212,12 +218,12 @@ export default function Dashboard() {
                         {error && <p className="error-msg" style={{ marginBottom: '12px' }}>{error}</p>}
                         <form className="auth-form" onSubmit={isEditing ? handleUpdate : handleCreate}>
                             <div className="form-group">
-                                <label>Project Name</label>
-                                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="My awesome project" autoFocus required />
+                                <label htmlFor="proj-name">Project Name</label>
+                                <input id="proj-name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="My awesome project" autoFocus required />
                             </div>
                             <div className="form-group">
-                                <label>Description</label>
-                                <input type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this project about?" />
+                                <label htmlFor="proj-desc">Description</label>
+                                <input id="proj-desc" type="text" value={description} onChange={e => setDescription(e.target.value)} placeholder="What is this project about?" />
                             </div>
                             {isEditing && (
                                 <div className="form-group">
@@ -246,7 +252,7 @@ export default function Dashboard() {
                                 <label>Color</label>
                                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '4px' }}>
                                     {PROJECT_COLORS.map(c => (
-                                        <button key={c} type="button" onClick={() => setColor(c)} style={{
+                                        <button key={c} type="button" onClick={() => setColor(c)} aria-label={`Select color ${c}`} aria-pressed={color === c} style={{
                                             width: '28px', height: '28px', borderRadius: '50%', background: c,
                                             border: color === c ? '3px solid #fff' : '2px solid transparent',
                                             outline: color === c ? `2px solid ${c}` : 'none', padding: 0, cursor: 'pointer'
@@ -297,8 +303,8 @@ export default function Dashboard() {
                                     <h3 style={{ color: project.color || PROJECT_COLORS[0], margin: 0, flex: 1 }}>{project.name}</h3>
                                     {project.isOwner ? (
                                         <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                                            <button className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
-                                            <button className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
+                                            <button aria-label={`Edit ${project.name}`} className="btn-secondary" onClick={(e) => { e.stopPropagation(); handleEdit(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>✏️</button>
+                                            <button aria-label={`Delete ${project.name}`} className="btn-danger" onClick={(e) => { e.stopPropagation(); handleDeleteClick(project); }} style={{ padding: '4px 8px', fontSize: '12px' }}>🗑️</button>
                                         </div>
                                     ) : (
                                         <span style={{ fontSize: '11px', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '10px', color: 'var(--text-secondary)', flexShrink: 0 }}>Member</span>

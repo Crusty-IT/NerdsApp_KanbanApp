@@ -11,6 +11,9 @@ import { useCards } from '../hooks/useCards';
 import { useCardSearch } from '../hooks/useCardSearch';
 import { useDragDrop } from '../hooks/useDragDrop';
 import { useBoardTopbar } from '../hooks/useBoardTopbar';
+import { useSignalR } from '../hooks/useSignalR';
+import { useSignalREvents } from '../hooks/useSignalREvents';
+import { getCurrentUserId } from '../services/signalr';
 
 export default function BoardView() {
     const { boardId } = useParams();
@@ -20,12 +23,67 @@ export default function BoardView() {
     const [projectMembers, setProjectMembers] = useState([]);
     const [error, setError] = useState(null);
     const [filterUserId, setFilterUserId] = useState('');
+    const [presenceState, setPresenceState] = useState({ boardId: null, users: [] });
+    const [editingState, setEditingState] = useState({ boardId: null, byCard: {} });
 
-    const { board, setBoard, boardMembers, loading, refreshMembers } = useBoardData(boardId);
-    const columns = useColumns(boardId, board, setBoard);
-    const { handleCreateCard, handleUpdateCard, handleDeleteCard, handleAssignCard, handleUploadCardImage, handleDeleteCardImage } = useCards(boardId, board, setBoard, setError);
-    const { searchQuery, setSearchQuery, searchResults, handleSearch, clearSearch } = useCardSearch(boardId, setError);
+    const { board, setBoard, boardMembers, loading, fetchError, refreshMembers } = useBoardData(boardId);
+    const { connection } = useSignalR(boardId);
     const { handleDragEnd } = useDragDrop(boardId, board, setBoard, setError);
+    const columns = useColumns(boardId, board, setBoard, connection);
+    const { handleCreateCard, handleUpdateCard, handleDeleteCard, handleAssignCard, handleUploadCardImage, handleDeleteCardImage } = useCards(boardId, board, setBoard, setError, connection);
+    const { searchQuery, setSearchQuery, searchResults, handleSearch, clearSearch } = useCardSearch(boardId, setError);
+    const currentUserId = getCurrentUserId();
+    const projectId = board?.projectId;
+    const presenceUsers = presenceState.boardId === boardId ? presenceState.users : [];
+    const editingByCard = editingState.boardId === boardId ? editingState.byCard : {};
+
+    useSignalREvents({
+        connection,
+        eventName: 'PresenceUpdated',
+        handler: (users) => {
+            setPresenceState({ boardId, users: Array.isArray(users) ? users : [] });
+        },
+    });
+
+    useSignalREvents({
+        connection,
+        eventName: 'CardEditingStarted',
+        handler: ({ cardId, userId, userName }) => {
+            if (userId && userId === currentUserId) return;
+            setEditingState(prev => {
+                const byCard = prev.boardId === boardId ? prev.byCard : {};
+                return {
+                    boardId,
+                    byCard: {
+                        ...byCard,
+                        [cardId]: { userId, userName: userName || 'Someone' }
+                    }
+                };
+            });
+        },
+    });
+
+    useSignalREvents({
+        connection,
+        eventName: 'CardEditingStopped',
+        handler: ({ cardId, userId }) => {
+            setEditingState(prev => {
+                if (prev.boardId !== boardId) return prev;
+                if (!prev.byCard[cardId] || (userId && prev.byCard[cardId].userId !== userId)) return prev;
+                const next = { ...prev.byCard };
+                delete next[cardId];
+                return { boardId, byCard: next };
+            });
+        },
+    });
+
+    const startEditingCard = useCallback((cardId) => {
+        connection.invoke('StartEditingCard', String(boardId), cardId).catch(() => {});
+    }, [boardId, connection]);
+
+    const stopEditingCard = useCallback((cardId) => {
+        connection.invoke('StopEditingCard', String(boardId), cardId).catch(() => {});
+    }, [boardId, connection]);
 
     const handleInvite = async (email) => {
         try {
@@ -38,14 +96,14 @@ export default function BoardView() {
     };
 
     const fetchProjectMembers = useCallback(async () => {
-        if (!board?.projectId) return;
+        if (!projectId) return;
         try {
-            const response = await api.get(`/api/projects/${board.projectId}/members`);
+            const response = await api.get(`/api/projects/${projectId}/members`);
             setProjectMembers(response.data);
         } catch (err) {
             console.error('Failed to fetch project members', err);
         }
-    }, [board?.projectId]);
+    }, [projectId]);
 
     const openMembers = useCallback(() => {
         setShowMembers(true);
@@ -53,19 +111,14 @@ export default function BoardView() {
     }, [fetchProjectMembers]);
 
     const handleRemoveMember = async (memberId) => {
-        if (!board?.projectId) return;
+        if (!projectId) return;
         try {
-            await api.delete(`/api/projects/${board.projectId}/members/${memberId}`);
+            await api.delete(`/api/projects/${projectId}/members/${memberId}`);
             setProjectMembers(prev => prev.filter(m => m.userId !== memberId));
         } catch {
             setError('Failed to remove member');
         }
     };
-
-    const handleShowMembers = useCallback(() => {
-        setShowMembers(true);
-        fetchProjectMembers();
-    }, [board?.projectId]);
 
     useBoardTopbar({
         board,
@@ -78,10 +131,16 @@ export default function BoardView() {
         clearSearch,
         navigate,
         setShowInvite,
-        setShowMembers: openMembers
+        setShowMembers: openMembers,
+        presenceUsers
     });
 
-    if (loading) return <div className="loading">loading board...</div>;
+    if (loading) return <div className="loading">Loading board...</div>;
+    if (fetchError) return (
+        <div className="page-content">
+            <p className="error-msg">Failed to load board. Please refresh the page or try again later.</p>
+        </div>
+    );
     if (!board) return <div className="page-content"><p>Board not found.</p></div>;
 
     const sortedColumns = [...board.columns].sort((a, b) => a.position - b.position);
@@ -97,13 +156,20 @@ export default function BoardView() {
     const pendingDeleteColumn = board.columns.find(c => c.id === columns.pendingDeleteColumnId);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
             {error && <div style={{ padding: '8px 24px' }}><span className="error-msg">{error}</span></div>}
 
             {searchResults && (
                 <div style={{ padding: '8px 24px', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)', fontSize: '13px', color: 'var(--text-secondary)', display: 'flex', gap: '12px', alignItems: 'center' }}>
                     <span>🔍 Found <strong style={{ color: 'var(--text-primary)' }}>{searchResults.length}</strong> card(s) for "{searchQuery}"</span>
                     <button onClick={clearSearch} style={{ fontSize: '12px', color: 'var(--accent-cyan)', background: 'none', border: 'none', cursor: 'pointer' }}>Clear search</button>
+                </div>
+            )}
+
+            {board.columns.length === 0 && (
+                <div className="empty-state" style={{ margin: '40px 24px' }}>
+                    <span className="empty-icon">📋</span>
+                    <p>No columns yet. Add your first column to get started.</p>
                 </div>
             )}
 
@@ -126,6 +192,9 @@ export default function BoardView() {
                                         onDeleteCardImage={handleDeleteCardImage}
                                         onAssignCard={handleAssignCard}
                                         boardMembers={boardMembers}
+                                        editingByCard={editingByCard}
+                                        onStartEditingCard={startEditingCard}
+                                        onStopEditingCard={stopEditingCard}
                                     />
                                 ))}
                                 {provided.placeholder}
@@ -168,7 +237,7 @@ export default function BoardView() {
 
             <InviteModal isOpen={showInvite} onClose={() => setShowInvite(false)} onInvite={handleInvite} />
 
-            {showMembers && board.projectId && (
+            {showMembers && projectId && (
                 <div className="modal-overlay" onClick={() => setShowMembers(false)}>
                     <div className="modal-box" onClick={e => e.stopPropagation()}>
                         <h2>Project Members</h2>

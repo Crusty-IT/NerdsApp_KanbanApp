@@ -2,7 +2,21 @@ import { useState } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import Card from './Card';
 
-export default function Column({ column, index, onCreateCard, onEdit, onDelete, onUpdateCard, onDeleteCard, onUploadCardImage, onDeleteCardImage, boardMembers }) {
+export default function Column({
+                                   column,
+                                   index,
+                                   onCreateCard,
+                                   onEdit,
+                                   onDelete,
+                                   onUpdateCard,
+                                   onDeleteCard,
+                                   onUploadCardImage,
+                                   onDeleteCardImage,
+                                   boardMembers,
+                                   editingByCard = {},
+                                   onStartEditingCard,
+                                   onStopEditingCard
+                               }) {
     const [showForm, setShowForm] = useState(false);
     const [title, setTitle] = useState('');
     const [showConfirmClear, setShowConfirmClear] = useState(false);
@@ -68,8 +82,8 @@ export default function Column({ column, index, onCreateCard, onEdit, onDelete, 
                                 }}>
                                     {column.cards.length}
                                 </span>
-                                <button onClick={() => onEdit(column)} className="btn-secondary" style={{ padding: '2px 6px', fontSize: '11px' }}>✏️</button>
-                                <button onClick={handleDelete} className="btn-danger" style={{ padding: '2px 6px', fontSize: '11px' }}>🗑️</button>
+                                <button onClick={() => onEdit(column)} aria-label={`Edit column ${column.name}`} className="btn-secondary" style={{ padding: '2px 6px', fontSize: '11px' }}>✏️</button>
+                                <button onClick={handleDelete} aria-label={`Delete column ${column.name}`} className="btn-danger" style={{ padding: '2px 6px', fontSize: '11px' }}>🗑️</button>
                             </div>
                         </div>
 
@@ -102,6 +116,9 @@ export default function Column({ column, index, onCreateCard, onEdit, onDelete, 
                                                         onDeleteImage={onDeleteCardImage}
                                                         boardMembers={boardMembers}
                                                         columnColor={color}
+                                                        editingUser={editingByCard[card.id]}
+                                                        onStartEditing={onStartEditingCard}
+                                                        onStopEditing={onStopEditingCard}
                                                     />
                                                 </div>
                                             )}
@@ -114,7 +131,8 @@ export default function Column({ column, index, onCreateCard, onEdit, onDelete, 
 
                         {showForm ? (
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                <input type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Card title..." autoFocus />
+                                <label htmlFor={`new-card-${column.id}`} className="sr-only">Card title</label>
+                                <input id={`new-card-${column.id}`} type="text" value={title} onChange={e => setTitle(e.target.value)} placeholder="Card title..." autoFocus />
                                 <div style={{ display: 'flex', gap: '6px' }}>
                                     <button type="submit" className="btn-primary" style={{ flex: 1, padding: '8px' }}>Add</button>
                                     <button type="button" className="btn-secondary" style={{ padding: '8px 12px' }} onClick={() => { setShowForm(false); setTitle(''); }}>✕</button>

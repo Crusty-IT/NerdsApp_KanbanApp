@@ -45,8 +45,9 @@ export default function RegisterPage() {
                 {error && <p className="error-msg" style={{ marginBottom: '16px' }}>{error}</p>}
                 <form className="auth-form" onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label>Username</label>
+                        <label htmlFor="reg-username">Username</label>
                         <input
+                            id="reg-username"
                             type="text"
                             value={username}
                             onChange={e => setUsername(e.target.value)}
@@ -55,8 +56,9 @@ export default function RegisterPage() {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Email</label>
+                        <label htmlFor="reg-email">Email</label>
                         <input
+                            id="reg-email"
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
@@ -65,8 +67,9 @@ export default function RegisterPage() {
                         />
                     </div>
                     <div className="form-group">
-                        <label>Password</label>
+                        <label htmlFor="reg-password">Password</label>
                         <input
+                            id="reg-password"
                             type="password"
                             value={password}
                             onChange={e => setPassword(e.target.value)}

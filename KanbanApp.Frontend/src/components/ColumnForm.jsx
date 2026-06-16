@@ -5,20 +5,24 @@ export default function ColumnForm({ columnName, setColumnName, columnColor, set
                 {isEditing ? 'Edit Column' : 'New Column'}
             </h3>
             <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <input
-                    type="text"
-                    value={columnName}
-                    onChange={e => setColumnName(e.target.value)}
-                    placeholder="Column name..."
-                    autoFocus
-                />
+                <div className="form-group">
+                    <label htmlFor="column-name-input">Column name</label>
+                    <input
+                        id="column-name-input"
+                        type="text"
+                        value={columnName}
+                        onChange={e => setColumnName(e.target.value)}
+                        placeholder="Column name..."
+                        autoFocus
+                    />
+                </div>
                 <div>
                     <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '6px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                         Color
                     </p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                         {COLORS.map(c => (
-                            <button key={c} type="button" onClick={() => setColumnColor(c)} style={{
+                            <button key={c} type="button" onClick={() => setColumnColor(c)} aria-label={`Select color ${c}`} aria-pressed={columnColor === c} style={{
                                 width: '22px', height: '22px', borderRadius: '50%', background: c,
                                 border: columnColor === c ? '3px solid #fff' : '2px solid transparent',
                                 outline: columnColor === c ? `2px solid ${c}` : 'none',

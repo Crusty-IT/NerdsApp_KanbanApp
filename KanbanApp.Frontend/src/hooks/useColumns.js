@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import api from '../services/api';
+import { useSignalREvents } from './useSignalREvents';
+import { getCurrentUserId } from '../services/signalr';
 
 const COLORS = [
     '#00d4ff', '#3b82f6', '#6366f1', '#8b5cf6',
@@ -7,7 +9,7 @@ const COLORS = [
     '#ec4899', '#f97316', '#84cc16', '#06b6d4'
 ];
 
-export function useColumns(boardId, board, setBoard) {
+export function useColumns(boardId, board, setBoard, connection) {
     const [columnName, setColumnName] = useState('');
     const [columnColor, setColumnColor] = useState(COLORS[0]);
     const [showColumnForm, setShowColumnForm] = useState(false);
@@ -16,6 +18,45 @@ export function useColumns(boardId, board, setBoard) {
     const [showConfirmDelete, setShowConfirmDelete] = useState(false);
     const [pendingDeleteColumnId, setPendingDeleteColumnId] = useState(null);
     const [error, setError] = useState(null);
+
+    useSignalREvents({
+        connection,
+        eventName: 'ColumnCreated',
+        handler: ({ column }) => {
+            setBoard(prev => {
+                if (prev.columns.some(c => c.id === column.id)) return prev;
+                const updated = JSON.parse(JSON.stringify(prev));
+                updated.columns.push({ ...column, cards: [] });
+                return updated;
+            });
+        },
+    });
+
+    useSignalREvents({
+        connection,
+        eventName: 'ColumnUpdated',
+        handler: ({ column, movedByUserId }) => {
+            if (movedByUserId && movedByUserId === getCurrentUserId()) return;
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                const col = updated.columns.find(c => c.id === column.id);
+                if (col) Object.assign(col, column);
+                return updated;
+            });
+        },
+    });
+
+    useSignalREvents({
+        connection,
+        eventName: 'ColumnDeleted',
+        handler: ({ columnId }) => {
+            setBoard(prev => {
+                const updated = JSON.parse(JSON.stringify(prev));
+                updated.columns = updated.columns.filter(c => c.id !== columnId);
+                return updated;
+            });
+        },
+    });
 
     const showError = (msg) => {
         setError(msg);

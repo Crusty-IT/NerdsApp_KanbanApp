@@ -5,10 +5,13 @@ export function useBoardData(boardId) {
     const [board, setBoard] = useState(null);
     const [boardMembers, setBoardMembers] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState(false);
 
     useEffect(() => {
         let ignore = false;
         async function fetchBoard() {
+            setLoading(true);
+            setFetchError(false);
             try {
                 const [boardRes, membersRes] = await Promise.all([
                     api.get(`/api/boards/${boardId}`),
@@ -19,7 +22,10 @@ export function useBoardData(boardId) {
                     setBoardMembers(membersRes.data);
                 }
             } catch {
-                console.error('Failed to fetch board');
+                if (!ignore) {
+                    setBoard(null);
+                    setFetchError(true);
+                }
             } finally {
                 if (!ignore) setLoading(false);
             }
@@ -33,5 +39,5 @@ export function useBoardData(boardId) {
         setBoardMembers(res.data);
     };
 
-    return { board, setBoard, boardMembers, loading, refreshMembers };
+    return { board, setBoard, boardMembers, loading, fetchError, refreshMembers };
 }
