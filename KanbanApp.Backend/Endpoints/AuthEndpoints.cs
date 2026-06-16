@@ -74,17 +74,40 @@ public static class AuthEndpoints
             ApplicationDbContext db,
             IConfiguration configuration) =>
         {
-            // Atomic revoke: only one concurrent request with the same token can succeed
-            var revoked = await db.RefreshTokens
-                .Where(rt => rt.Token == request.RefreshToken && !rt.IsRevoked && rt.ExpiresAt > DateTime.UtcNow)
-                .ExecuteUpdateAsync(setters => setters.SetProperty(rt => rt.IsRevoked, true));
+            var now = DateTime.UtcNow;
+            RefreshToken? stored;
 
-            if (revoked == 0)
+            if (db.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
+            {
+                stored = await db.RefreshTokens
+                    .Include(rt => rt.User)
+                    .FirstOrDefaultAsync(rt =>
+                        rt.Token == request.RefreshToken &&
+                        !rt.IsRevoked &&
+                        rt.ExpiresAt > now);
+
+                if (stored == null)
+                    return Results.Unauthorized();
+
+                stored.IsRevoked = true;
+            }
+            else
+            {
+                // Atomic revoke: only one concurrent request with the same token can succeed.
+                var revoked = await db.RefreshTokens
+                    .Where(rt => rt.Token == request.RefreshToken && !rt.IsRevoked && rt.ExpiresAt > now)
+                    .ExecuteUpdateAsync(setters => setters.SetProperty(rt => rt.IsRevoked, true));
+
+                if (revoked == 0)
+                    return Results.Unauthorized();
+
+                stored = await db.RefreshTokens
+                    .Include(rt => rt.User)
+                    .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
+            }
+
+            if (stored == null)
                 return Results.Unauthorized();
-
-            var stored = await db.RefreshTokens
-                .Include(rt => rt.User)
-                .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
 
             var newRefreshToken = GenerateRefreshToken();
             db.RefreshTokens.Add(new RefreshToken
