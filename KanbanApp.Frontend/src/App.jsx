@@ -6,6 +6,7 @@ import NotificationBell from './components/NotificationBell';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import Toast from './components/Toast';
 import { useToast } from './hooks/useToast';
+import { removePushSubscriptionOnLogout } from './services/pushNotifications';
 
 export default function App() {
     const navigate = useNavigate();
@@ -21,7 +22,12 @@ export default function App() {
         api.get('/api/users/me').then(res => setUser(res.data)).catch(() => {});
     }, [location.pathname]);
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        const refreshToken = localStorage.getItem('refreshToken');
+        await removePushSubscriptionOnLogout();
+        if (refreshToken) {
+            await api.post('/api/auth/logout', { refreshToken }).catch(() => {});
+        }
         localStorage.removeItem('token');
         localStorage.removeItem('refreshToken');
         navigate('/login');

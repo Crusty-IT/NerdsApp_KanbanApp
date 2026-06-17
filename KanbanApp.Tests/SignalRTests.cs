@@ -109,6 +109,62 @@ public class SignalRTests : TestBase
             result.GetProperty("cardId").GetInt32().Should().Be(cardId);
             result.GetProperty("fromColumnId").GetInt32().Should().Be(col1Id);
             result.GetProperty("toColumnId").GetInt32().Should().Be(col2Id);
+            result.GetProperty("newPosition").GetInt32().Should().Be(0);
+        }
+        finally
+        {
+            await conn2.StopAsync();
+        }
+    }
+
+    [Fact]
+    public async Task CardReorderedWithinColumn_BroadcastsCardMovedAndPersistsPosition()
+    {
+        var email2 = $"{Guid.NewGuid()}@test.com";
+        var (token1, client1) = await CreateUserAsync($"{Guid.NewGuid()}@test.com");
+        var (token2, _) = await CreateUserAsync(email2);
+
+        var boardId = await CreateBoardAsync(client1, "Reorder Test Board");
+        await client1.PostAsJsonAsync($"/api/boards/{boardId}/members", new { email = email2 });
+        var colId = await CreateColumnAsync(client1, boardId, "Column A");
+        var card1Id = await CreateCardAsync(client1, boardId, colId, "First Card");
+        var card2Id = await CreateCardAsync(client1, boardId, colId, "Second Card");
+
+        var conn2 = await CreateSignalRConnectionAsync(token2, boardId.ToString());
+        var tcs = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        conn2.On<JsonElement>("CardMoved", payload => tcs.TrySetResult(payload));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        cts.Token.Register(() => tcs.TrySetCanceled());
+
+        try
+        {
+            var updateResponse = await client1.PutAsJsonAsync($"/api/boards/{boardId}/cards/{card1Id}", new
+            {
+                title = "First Card",
+                description = (string?)null,
+                columnId = colId,
+                assignedToUserId = (string?)null,
+                dueDate = (DateTime?)null,
+                priority = (int?)null,
+                position = 1
+            });
+            updateResponse.EnsureSuccessStatusCode();
+
+            var result = await tcs.Task;
+            result.GetProperty("cardId").GetInt32().Should().Be(card1Id);
+            result.GetProperty("fromColumnId").GetInt32().Should().Be(colId);
+            result.GetProperty("toColumnId").GetInt32().Should().Be(colId);
+            result.GetProperty("newPosition").GetInt32().Should().Be(1);
+
+            var boardResponse = await client1.GetAsync($"/api/boards/{boardId}");
+            boardResponse.EnsureSuccessStatusCode();
+            var board = await boardResponse.Content.ReadFromJsonAsync<JsonElement>();
+            var cards = board.GetProperty("columns")[0].GetProperty("cards");
+            cards[0].GetProperty("id").GetInt32().Should().Be(card2Id);
+            cards[0].GetProperty("position").GetInt32().Should().Be(0);
+            cards[1].GetProperty("id").GetInt32().Should().Be(card1Id);
+            cards[1].GetProperty("position").GetInt32().Should().Be(1);
         }
         finally
         {
@@ -247,7 +303,8 @@ public class SignalRTests : TestBase
         var boardId = await CreateBoardAsync(client1, "Edit Test Board");
         await client1.PostAsJsonAsync($"/api/boards/{boardId}/members", new { email = email2 });
         var boardIdStr = boardId.ToString();
-        const int cardId = 99;
+        var colId = await CreateColumnAsync(client1, boardId, "To Do");
+        var cardId = await CreateCardAsync(client1, boardId, colId, "Edited Card");
 
         var conn1 = await CreateSignalRConnectionAsync(token1, boardIdStr);
         var conn2 = await CreateSignalRConnectionAsync(token2, boardIdStr);
@@ -269,5 +326,81 @@ public class SignalRTests : TestBase
             await conn1.StopAsync();
             await conn2.StopAsync();
         }
+    }
+
+    [Fact]
+    public async Task DisconnectingEditor_BroadcastsCardEditingStopped()
+    {
+        var email2 = $"{Guid.NewGuid()}@test.com";
+        var (token1, client1) = await CreateUserAsync($"{Guid.NewGuid()}@test.com");
+        var (token2, _) = await CreateUserAsync(email2);
+
+        var boardId = await CreateBoardAsync(client1, "Edit Disconnect Board");
+        await client1.PostAsJsonAsync($"/api/boards/{boardId}/members", new { email = email2 });
+        var boardIdStr = boardId.ToString();
+        var colId = await CreateColumnAsync(client1, boardId, "To Do");
+        var cardId = await CreateCardAsync(client1, boardId, colId, "Disconnect Edited Card");
+
+        var conn1 = await CreateSignalRConnectionAsync(token1, boardIdStr);
+        var conn2 = await CreateSignalRConnectionAsync(token2, boardIdStr);
+
+        var started = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopped = new TaskCompletionSource<JsonElement>(TaskCreationOptions.RunContinuationsAsynchronously);
+        conn2.On<JsonElement>("CardEditingStarted", payload => started.TrySetResult(payload));
+        conn2.On<JsonElement>("CardEditingStopped", payload => stopped.TrySetResult(payload));
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        cts.Token.Register(() =>
+        {
+            started.TrySetCanceled();
+            stopped.TrySetCanceled();
+        });
+
+        try
+        {
+            await conn1.InvokeAsync("StartEditingCard", boardIdStr, cardId);
+            (await started.Task).GetProperty("cardId").GetInt32().Should().Be(cardId);
+
+            await conn1.StopAsync();
+            var result = await stopped.Task;
+            result.GetProperty("cardId").GetInt32().Should().Be(cardId);
+        }
+        finally
+        {
+            await conn2.StopAsync();
+        }
+    }
+
+    [Fact]
+    public async Task CardUpdate_CreatesNotificationForOtherBoardMembers()
+    {
+        var email2 = $"{Guid.NewGuid()}@test.com";
+        var (_, client1) = await CreateUserAsync($"{Guid.NewGuid()}@test.com");
+        var (_, client2) = await CreateUserAsync(email2);
+
+        var boardId = await CreateBoardAsync(client1, "Notification Change Board");
+        await client1.PostAsJsonAsync($"/api/boards/{boardId}/members", new { email = email2 });
+        var colId = await CreateColumnAsync(client1, boardId, "Column A");
+        var cardId = await CreateCardAsync(client1, boardId, colId, "Notify Card");
+
+        var updateResponse = await client1.PutAsJsonAsync($"/api/boards/{boardId}/cards/{cardId}", new
+        {
+            title = "Notify Card Updated",
+            description = (string?)null,
+            columnId = colId,
+            assignedToUserId = (string?)null,
+            dueDate = (DateTime?)null,
+            priority = (int?)null,
+            position = 0
+        });
+        updateResponse.EnsureSuccessStatusCode();
+
+        var notificationsResponse = await client2.GetAsync("/api/notifications");
+        notificationsResponse.EnsureSuccessStatusCode();
+        var notifications = await notificationsResponse.Content.ReadFromJsonAsync<JsonElement>();
+
+        notifications.EnumerateArray()
+            .Should()
+            .Contain(n => n.GetProperty("message").GetString() == "Card \"Notify Card Updated\" was updated.");
     }
 }

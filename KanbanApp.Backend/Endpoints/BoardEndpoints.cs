@@ -74,7 +74,7 @@ public static class BoardEndpoints
                 isBoardOwner || isProjectOwner,
                 board.Columns.Select(c => new ColumnDto(
                     c.Id, c.Name, c.Position, c.Color,
-                    c.Cards.Select(card => new CardDto(
+                    c.Cards.OrderBy(card => card.Position).ThenBy(card => card.Id).Select(card => new CardDto(
                         card.Id, card.Title, card.Description, card.Position, card.ColumnId, card.CreatedAt, card.AssignedToUserId, card.DueDate, card.Priority,
                         card.Images.Select(i => new CardImageDto(i.Id, i.FileName, i.Url, i.ContentType, i.ObjectPosition, i.UploadedAt)).ToList()
                     )).ToList()
