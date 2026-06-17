@@ -292,37 +292,6 @@ namespace KanbanApp.Backend.Migrations
                     b.ToTable("Notifications");
                 });
 
-            modelBuilder.Entity("KanbanApp.Backend.Models.NotificationPreference", b =>
-                {
-                    b.Property<string>("UserId")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IncludeCardDetails")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("NotifyCardAssigned")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("NotifyCardCreated")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("NotifyCardDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("NotifyCardMoved")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("NotifyCardUpdated")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("WebPushEnabled")
-                        .HasColumnType("boolean");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("NotificationPreferences");
-                });
-
             modelBuilder.Entity("KanbanApp.Backend.Models.Project", b =>
                 {
                     b.Property<int>("Id")
@@ -381,61 +350,6 @@ namespace KanbanApp.Backend.Migrations
                     b.HasIndex("ProjectId");
 
                     b.ToTable("ProjectMembers");
-                });
-
-            modelBuilder.Entity("KanbanApp.Backend.Models.PushSubscription", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Auth")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Endpoint")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("FailedAttempts")
-                        .HasColumnType("integer");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastUsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("P256dh")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("UserAgent")
-                        .HasColumnType("text");
-
-                    b.Property<string>("UserId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Endpoint")
-                        .IsUnique();
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PushSubscriptions");
                 });
 
             modelBuilder.Entity("KanbanApp.Backend.Models.RefreshToken", b =>
@@ -671,17 +585,6 @@ namespace KanbanApp.Backend.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("KanbanApp.Backend.Models.NotificationPreference", b =>
-                {
-                    b.HasOne("KanbanApp.Backend.Models.ApplicationUser", "User")
-                        .WithOne()
-                        .HasForeignKey("KanbanApp.Backend.Models.NotificationPreference", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
             modelBuilder.Entity("KanbanApp.Backend.Models.Project", b =>
                 {
                     b.HasOne("KanbanApp.Backend.Models.ApplicationUser", "Owner")
@@ -708,17 +611,6 @@ namespace KanbanApp.Backend.Migrations
                         .IsRequired();
 
                     b.Navigation("Project");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("KanbanApp.Backend.Models.PushSubscription", b =>
-                {
-                    b.HasOne("KanbanApp.Backend.Models.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
 
                     b.Navigation("User");
                 });

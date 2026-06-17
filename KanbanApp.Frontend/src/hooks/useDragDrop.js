@@ -42,10 +42,7 @@ export function useDragDrop(boardId, board, setBoard, setError) {
             const sourceCol = updated.columns.find(c => c.id === sourceColumnId);
             const destCol = updated.columns.find(c => c.id === destColumnId);
             const [movedCard] = sourceCol.cards.splice(sourceCol.cards.findIndex(c => c.id === cardId), 1);
-            movedCard.columnId = destColumnId;
             destCol.cards.splice(destination.index, 0, movedCard);
-            sourceCol.cards.forEach((c, i) => { c.position = i; });
-            destCol.cards.forEach((c, i) => { c.position = i; });
             return updated;
         });
 
@@ -53,8 +50,7 @@ export function useDragDrop(boardId, board, setBoard, setError) {
         try {
             await api.put(`/api/boards/${boardId}/cards/${cardId}`, {
                 title: card.title, description: card.description, columnId: destColumnId,
-                assignedToUserId: card.assignedToUserId || null, dueDate: card.dueDate || null, priority: card.priority || null,
-                position: destination.index
+                assignedToUserId: card.assignedToUserId || null, dueDate: card.dueDate || null, priority: card.priority || null
             });
         } catch {
             setBoard(previousBoard);

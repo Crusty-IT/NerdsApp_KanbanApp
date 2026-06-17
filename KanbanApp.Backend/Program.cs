@@ -68,7 +68,6 @@ app.MapBoardEndpoints();
 app.MapColumnEndpoints();
 app.MapCardEndpoints();
 app.MapNotificationEndpoints();
-app.MapPushNotificationEndpoints();
 app.MapHealthEndpoints();
 app.MapSignalREndpoints();
 

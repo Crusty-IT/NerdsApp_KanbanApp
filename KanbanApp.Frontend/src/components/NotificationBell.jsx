@@ -12,7 +12,7 @@ export default function NotificationBell() {
 
     useEffect(() => {
         fetchNotifications();
-    }, [fetchNotifications]);
+    }, []);
 
     useEffect(() => {
         if (!localStorage.getItem('token')) return;
@@ -27,7 +27,7 @@ export default function NotificationBell() {
         });
 
         return () => { active = false; };
-    }, [connection, fetchNotifications]);
+    }, []);
 
     useSignalREvents({
         connection,
@@ -35,9 +35,6 @@ export default function NotificationBell() {
         handler: (notification) => {
             addNotification(notification);
             addToast(notification.message);
-            if ('Notification' in window && window.Notification.permission === 'granted') {
-                new window.Notification('Shellty.Kanban', { body: notification.message });
-            }
         },
     });
 

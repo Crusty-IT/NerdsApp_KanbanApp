@@ -25,12 +25,11 @@ public static class CardEndpoints
             if (dto.Title.Length > 200)
                 return Results.BadRequest("Title cannot exceed 200 characters.");
 
-            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
-            var card = await cardService.CreateAsync(boardId, dto.ColumnId, dto.Title, dto.Description, dto.DueDate, dto.Priority, userId);
+            var card = await cardService.CreateAsync(boardId, dto.ColumnId, dto.Title, dto.Description, dto.DueDate, dto.Priority);
             return card is null
                 ? Results.BadRequest("Column not found.")
                 : TypedResults.Created($"/api/boards/{boardId}/cards/{card.Id}",
-                    new { card.Id, card.Title, card.Description, card.Position, card.ColumnId, card.DueDate, card.Priority, images = Array.Empty<CardImageDto>() });
+                    new { card.Id, card.Title, card.Description, card.ColumnId, card.DueDate, card.Priority, images = Array.Empty<CardImageDto>() });
         });
 
         cards.MapPut("/{cardId}", async (int boardId, int cardId, UpdateCardDto dto, ICardService cardService,
@@ -52,7 +51,7 @@ public static class CardEndpoints
             }
 
             var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
-            var card = await cardService.UpdateAsync(boardId, cardId, dto.Title, dto.Description, dto.ColumnId, dto.AssignedToUserId, dto.DueDate, dto.Priority, dto.Position, userId);
+            var card = await cardService.UpdateAsync(boardId, cardId, dto.Title, dto.Description, dto.ColumnId, dto.AssignedToUserId, dto.DueDate, dto.Priority, userId);
             return card is null
                 ? Results.NotFound()
                 : Results.Ok(new
@@ -60,7 +59,6 @@ public static class CardEndpoints
                     card.Id,
                     card.Title,
                     card.Description,
-                    card.Position,
                     card.ColumnId,
                     card.AssignedToUserId,
                     card.DueDate,
@@ -76,8 +74,7 @@ public static class CardEndpoints
             if (!authResult.Succeeded) return Results.Forbid();
 
             var images = await cardService.GetImagesAsync(boardId, cardId);
-            var userId = user.FindFirstValue(ClaimTypes.NameIdentifier)!;
-            var deleted = await cardService.DeleteAsync(boardId, cardId, userId);
+            var deleted = await cardService.DeleteAsync(boardId, cardId);
             if (deleted && images != null)
             {
                 foreach (var image in images)

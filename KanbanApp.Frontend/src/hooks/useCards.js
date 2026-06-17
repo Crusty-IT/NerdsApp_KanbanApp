@@ -9,26 +9,19 @@ export function useCards(boardId, board, setBoard, setError, connection) {
     useSignalREvents({
         connection,
         eventName: 'CardMoved',
-        handler: ({ cardId, toColumnId, newPosition, movedByUserId }) => {
+        handler: ({ cardId, fromColumnId, toColumnId, newPosition, movedByUserId }) => {
             if (movedByUserId && movedByUserId === getCurrentUserId()) return;
             setBoard(prev => {
                 const updated = JSON.parse(JSON.stringify(prev));
+                const fromCol = updated.columns.find(c => c.id === fromColumnId);
                 const toCol = updated.columns.find(c => c.id === toColumnId);
-                if (!toCol) return prev;
-
-                let movedCard = null;
-                updated.columns.forEach(col => {
-                    const idx = col.cards.findIndex(c => c.id === cardId);
-                    if (idx === -1) return;
-                    const [card] = col.cards.splice(idx, 1);
-                    movedCard = card;
-                    col.cards.forEach((c, i) => { c.position = i; });
-                });
-
-                if (!movedCard) return prev;
-                movedCard.columnId = toColumnId;
+                if (!fromCol || !toCol) return prev;
+                const idx = fromCol.cards.findIndex(c => c.id === cardId);
+                if (idx === -1) return prev;
+                const [card] = fromCol.cards.splice(idx, 1);
+                fromCol.cards.forEach((c, i) => { c.position = i; });
                 const insertAt = Math.max(0, Math.min(newPosition, toCol.cards.length));
-                toCol.cards.splice(insertAt, 0, movedCard);
+                toCol.cards.splice(insertAt, 0, card);
                 toCol.cards.forEach((c, i) => { c.position = i; });
                 return updated;
             });
@@ -60,21 +53,8 @@ export function useCards(boardId, board, setBoard, setError, connection) {
         handler: ({ card }) => {
             setBoard(prev => {
                 const updated = JSON.parse(JSON.stringify(prev));
-                let target = null;
-                updated.columns.forEach(col => {
-                    const idx = col.cards.findIndex(c => c.id === card.id);
-                    if (idx === -1) return;
-                    const [existing] = col.cards.splice(idx, 1);
-                    target = { ...existing, ...card };
-                    col.cards.forEach((c, i) => { c.position = i; });
-                });
-
-                const targetColumn = updated.columns.find(c => c.id === card.columnId);
-                if (!target || !targetColumn) return prev;
-
-                const insertAt = Math.max(0, Math.min(target.position ?? targetColumn.cards.length, targetColumn.cards.length));
-                targetColumn.cards.splice(insertAt, 0, target);
-                targetColumn.cards.forEach((c, i) => { c.position = i; });
+                const target = updated.columns.flatMap(c => c.cards).find(c => c.id === card.id);
+                if (target) Object.assign(target, card);
                 return updated;
             });
         },
@@ -137,8 +117,7 @@ export function useCards(boardId, board, setBoard, setError, connection) {
                 columnId: data.columnId ?? card.columnId,
                 assignedToUserId: data.assignedToUserId,
                 dueDate: data.dueDate,
-                priority: data.priority,
-                position: data.position ?? card.position
+                priority: data.priority
             };
 
             const response = await api.put(`/api/boards/${boardId}/cards/${cardId}`, payload);

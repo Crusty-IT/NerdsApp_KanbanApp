@@ -20,8 +20,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<CardImage> CardImages { get; set; }
-    public DbSet<PushSubscription> PushSubscriptions { get; set; }
-    public DbSet<NotificationPreference> NotificationPreferences { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -78,22 +76,5 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasOne(i => i.Card)
             .WithMany(c => c.Images)
             .HasForeignKey(i => i.CardId);
-
-        modelBuilder.Entity<PushSubscription>()
-            .HasIndex(s => s.Endpoint)
-            .IsUnique();
-
-        modelBuilder.Entity<PushSubscription>()
-            .HasOne(s => s.User)
-            .WithMany()
-            .HasForeignKey(s => s.UserId);
-
-        modelBuilder.Entity<NotificationPreference>()
-            .HasKey(p => p.UserId);
-
-        modelBuilder.Entity<NotificationPreference>()
-            .HasOne(p => p.User)
-            .WithOne()
-            .HasForeignKey<NotificationPreference>(p => p.UserId);
     }
 }

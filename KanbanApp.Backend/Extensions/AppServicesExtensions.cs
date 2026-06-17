@@ -11,7 +11,6 @@ public static class AppServicesExtensions
         services.AddScoped<IBoardService, BoardService>();
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<ICardService, CardService>();
-        services.AddScoped<IPushNotificationService, WebPushNotificationService>();
 
         services.AddAuthorization(options =>
         {

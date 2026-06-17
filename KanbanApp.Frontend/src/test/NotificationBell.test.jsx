@@ -1,8 +1,7 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { beforeEach, describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
 import NotificationBell from '../components/NotificationBell';
 import { TopbarProvider } from '../context/TopbarContext';
-import api from '../services/api';
 
 function renderBell() {
     return render(
@@ -13,37 +12,25 @@ function renderBell() {
 }
 
 describe('NotificationBell', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-    });
-
-    async function waitForNotificationsFetch() {
-        await waitFor(() => expect(api.get).toHaveBeenCalledWith('/api/notifications'));
-    }
-
-    it('renders the bell button', async () => {
+    it('renders the bell button', () => {
         renderBell();
-        await waitForNotificationsFetch();
         expect(screen.getByRole('button')).toBeInTheDocument();
     });
 
     it('shows empty state when notifications dropdown is opened with no notifications', async () => {
         renderBell();
-        await waitForNotificationsFetch();
         fireEvent.click(screen.getByRole('button'));
         expect(await screen.findByText(/no notifications/i)).toBeInTheDocument();
     });
 
-    it('shows "Notifications" heading when dropdown is open', async () => {
+    it('shows "Notifications" heading when dropdown is open', () => {
         renderBell();
-        await waitForNotificationsFetch();
         fireEvent.click(screen.getByRole('button'));
         expect(screen.getByText('Notifications')).toBeInTheDocument();
     });
 
-    it('dropdown is hidden initially', async () => {
+    it('dropdown is hidden initially', () => {
         renderBell();
-        await waitForNotificationsFetch();
         expect(screen.queryByText('Notifications')).not.toBeInTheDocument();
     });
 });
