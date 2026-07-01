@@ -20,14 +20,27 @@ var configuredCorsOrigins = builder.Configuration
 var configuredCorsOriginsFromValue = (builder.Configuration["Cors:AllowedOrigins"] ?? string.Empty)
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
+var configuredCorsOriginsFromAliases = new[]
+    {
+        "CORS_origins",
+        "CORS_ORIGINS",
+        "CorsOrigins"
+    }
+    .SelectMany(key => (builder.Configuration[key] ?? string.Empty)
+        .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
 var corsOrigins = new[]
     {
         "http://localhost:5173",
         "https://shellty-kanban.netlify.app",
-        "https://shellty-kanban.vercel.app"
+        "https://shellty-kanban.vercel.app",
+        "https://kanban.shellty.pl"
     }
     .Concat(configuredCorsOrigins)
     .Concat(configuredCorsOriginsFromValue)
+    .Concat(configuredCorsOriginsFromAliases)
+    .Select(origin => origin.Trim().TrimEnd('/'))
+    .Where(origin => !string.IsNullOrWhiteSpace(origin))
     .Distinct(StringComparer.OrdinalIgnoreCase)
     .ToArray();
 

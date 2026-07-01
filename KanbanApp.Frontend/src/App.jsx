@@ -5,6 +5,7 @@ import { useTopbar } from './context/TopbarContext';
 import NotificationBell from './components/NotificationBell';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import Toast from './components/Toast';
+import BackendWakeNotice from './components/BackendWakeNotice';
 import { useToast } from './hooks/useToast';
 
 export default function App() {
@@ -28,10 +29,18 @@ export default function App() {
     };
 
     const isAuthPage = ['/login', '/register', '/'].includes(location.pathname);
-    if (isAuthPage) return <Outlet />;
+    if (isAuthPage) {
+        return (
+            <>
+                <BackendWakeNotice />
+                <Outlet />
+            </>
+        );
+    }
 
     return (
         <div className="app-layout">
+            <BackendWakeNotice />
             <aside className="sidebar">
                 <div className="sidebar-logo">
                     <img src="/logo.png" alt="KanbanApp logo" style={{ height: '36px', width: 'auto' }} />
