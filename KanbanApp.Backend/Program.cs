@@ -32,7 +32,6 @@ var configuredCorsOriginsFromAliases = new[]
 var corsOrigins = new[]
     {
         "http://localhost:5173",
-        "https://shellty-kanban.netlify.app",
         "https://shellty-kanban.vercel.app",
         "https://kanban.shellty.pl"
     }
