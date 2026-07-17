@@ -1,12 +1,25 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation, NavLink, Outlet } from 'react-router-dom';
+import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import api from './services/api';
 import { useTopbar } from './context/TopbarContext';
 import NotificationBell from './components/NotificationBell';
 import PrivacyPolicyModal from './components/PrivacyPolicyModal';
 import Toast from './components/Toast';
 import BackendWakeNotice from './components/BackendWakeNotice';
+import Sidebar from './components/Sidebar';
 import { useToast } from './hooks/useToast';
+import { useNavDock } from './hooks/useNavDock';
+import { useIsMobile } from './hooks/useIsMobile';
+
+function contentStyle(mode, collapsed, isMobile) {
+    if (isMobile) return { marginLeft: 0, marginRight: 0, paddingBottom: '84px' };
+    if (mode === 'bottom') return { marginLeft: 0, marginRight: 0, paddingBottom: '96px' };
+    if (mode === 'floating') return { marginLeft: 0, marginRight: 0 };
+    const offset = (collapsed ? 76 : 240) + 24;
+    return mode === 'right'
+        ? { marginLeft: 0, marginRight: offset }
+        : { marginLeft: offset, marginRight: 0 };
+}
 
 export default function App() {
     const navigate = useNavigate();
@@ -15,6 +28,8 @@ export default function App() {
     const [privacyOpen, setPrivacyOpen] = useState(false);
     const { title, actions } = useTopbar();
     const { toasts, removeToast } = useToast();
+    const dock = useNavDock();
+    const isMobile = useIsMobile();
 
     useEffect(() => {
         const token = localStorage.getItem('token');
@@ -37,69 +52,13 @@ export default function App() {
                 <Outlet />
             ) : (
                 <div className="app-layout">
-                    <aside className="sidebar">
-                        <div className="sidebar-logo">
-                            <img src="/logo.png" alt="KanbanApp logo" style={{ height: '36px', width: 'auto' }} />
-                            <span className="sidebar-logo-text">
-                                <span className="logo-shell">Shell</span><span className="logo-ty">ty</span><span className="logo-dot">.Kanban</span>
-                            </span>
-                        </div>
-                        <nav className="sidebar-nav">
-                            <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}>
-                                Projects
-                            </NavLink>
-                            <NavLink to="/profile" className={({ isActive }) => isActive ? 'active' : ''}>
-                                Profile
-                            </NavLink>
-                        </nav>
-                        <div className="sidebar-bottom">
-                            {user && (
-                                <div className="sidebar-user">
-                                    <div style={{
-                                        width: '28px',
-                                        height: '28px',
-                                        borderRadius: '50%',
-                                        overflow: 'hidden',
-                                        background: 'var(--accent-indigo)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        fontSize: '11px',
-                                        fontWeight: '600',
-                                        color: '#fff',
-                                        flexShrink: 0
-                                    }}>
-                                        {user.profilePictureUrl
-                                            ? <img src={user.profilePictureUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                            : user.userName?.slice(0, 2).toUpperCase()
-                                        }
-                                    </div>
-                                    <div style={{ overflow: 'hidden' }}>
-                                        <p style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {user.userName}
-                                        </p>
-                                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                            {user.email}
-                                        </p>
-                                    </div>
-                                </div>
-                            )}
-                            <button onClick={handleLogout} className="btn-secondary" style={{ width: '100%', marginTop: '8px' }}>
-                                Logout
-                            </button>
-                            <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                                    Copyright 2026 Shellty IT
-                                </div>
-                                <button
-                                    onClick={() => setPrivacyOpen(true)}
-                                    style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline', padding: 0, marginTop: '2px' }}
-                                >
-                                    Privacy Policy
-                                </button>
-                            </div>
-                        </div>
-                    </aside>
+                    <Sidebar
+                        user={user}
+                        onLogout={handleLogout}
+                        onOpenPrivacy={() => setPrivacyOpen(true)}
+                        dock={dock}
+                        isMobile={isMobile}
+                    />
 
                     <PrivacyPolicyModal isOpen={privacyOpen} onClose={() => setPrivacyOpen(false)} />
 
@@ -109,7 +68,7 @@ export default function App() {
                         ))}
                     </div>
 
-                    <div className="main-content">
+                    <div className="main-content" style={contentStyle(dock.mode, dock.collapsed, isMobile)}>
                         <div className="topbar">
                             <div className="topbar-left">
                                 {actions?.left}
