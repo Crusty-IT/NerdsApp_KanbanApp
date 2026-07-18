@@ -33,7 +33,7 @@ export default function Sidebar({ user, onLogout, onOpenPrivacy, dock, isMobile 
     const isBottom = effectiveMode === 'bottom';
     const isRight = effectiveMode === 'right';
     const isFloating = effectiveMode === 'floating';
-    const isCollapsed = !isBottom && collapsed;
+    const isCollapsed = isMobile ? true : collapsed;
 
     const [pinOpen, setPinOpen] = useState(false);
     const [drag, setDrag] = useState(null);
@@ -164,11 +164,11 @@ export default function Sidebar({ user, onLogout, onOpenPrivacy, dock, isMobile 
         <NavLink
             key={item.to}
             to={item.to}
-            title={isCollapsed || isBottom ? item.label : undefined}
+            title={isCollapsed ? item.label : undefined}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
         >
             <span className="nav-item-icon"><NavIcon name={item.icon} /></span>
-            {!isCollapsed && !isBottom && <span className="nav-item-label">{item.label}</span>}
+            {!isCollapsed && <span className="nav-item-label">{item.label}</span>}
         </NavLink>
     ));
 
@@ -190,7 +190,7 @@ export default function Sidebar({ user, onLogout, onOpenPrivacy, dock, isMobile 
     const brand = (
         <Link to="/dashboard" className="nav-brand" title="Shellty.Kanban">
             <img src="/logo.png" alt="KanbanApp logo" />
-            {!isCollapsed && !isBottom && (
+            {!isCollapsed && (
                 <span className="nav-brand-text">
                     <span className="logo-shell">Shell</span><span className="logo-ty">ty</span><span className="logo-dot">.Kanban</span>
                 </span>
@@ -198,10 +198,28 @@ export default function Sidebar({ user, onLogout, onOpenPrivacy, dock, isMobile 
         </Link>
     );
 
+    const collapseIcon = isBottom
+        ? (isCollapsed ? 'chevron-up' : 'chevron-down')
+        : isCollapsed
+            ? (isRight ? 'chevron-left' : 'chevron-right')
+            : (isRight ? 'chevron-right' : 'chevron-left');
+
+    const collapseBtn = (
+        <button
+            type="button"
+            className="nav-iconbtn"
+            title={isCollapsed ? 'Expand' : 'Collapse'}
+            aria-label={isCollapsed ? 'Expand menu' : 'Collapse menu'}
+            onClick={toggleCollapsed}
+        >
+            <NavIcon name={collapseIcon} size={16} />
+        </button>
+    );
+
     let panelBody;
     if (isBottom) {
         panelBody = (
-            <div className="nav-bar">
+            <div className={`nav-bar${isCollapsed ? ' is-collapsed' : ''}`}>
                 {!isMobile && grip}
                 {brand}
                 <span className="nav-sep" />
@@ -209,33 +227,23 @@ export default function Sidebar({ user, onLogout, onOpenPrivacy, dock, isMobile 
                 <span className="nav-sep" />
                 {avatar}
                 {logoutBtn(false)}
+                {!isMobile && collapseBtn}
                 {!isMobile && pinMenu}
             </div>
         );
     } else {
         panelBody = (
             <>
-                <div className="nav-head">
-                    {grip}
+                <div className="nav-brandrow">
                     {brand}
-                    {!isCollapsed && (
-                        <div className="nav-head-actions">
-                            {pinMenu}
-                            <button type="button" className="nav-iconbtn" title="Collapse" aria-label="Collapse menu" onClick={toggleCollapsed}>
-                                <NavIcon name={isRight ? 'chevron-right' : 'chevron-left'} size={16} />
-                            </button>
-                        </div>
-                    )}
                 </div>
 
-                {isCollapsed && (
-                    <div className="nav-collapsed-actions">
-                        {pinMenu}
-                        <button type="button" className="nav-iconbtn" title="Expand" aria-label="Expand menu" onClick={toggleCollapsed}>
-                            <NavIcon name={isRight ? 'chevron-left' : 'chevron-right'} size={16} />
-                        </button>
-                    </div>
-                )}
+                <div className={`nav-toolbar${isCollapsed ? ' is-collapsed' : ''}`}>
+                    {grip}
+                    {!isCollapsed && <span className="nav-toolbar-spacer" />}
+                    {pinMenu}
+                    {collapseBtn}
+                </div>
 
                 {!isCollapsed && <div className="nav-section-label">Menu</div>}
                 <nav className="nav-list">{navItems}</nav>
